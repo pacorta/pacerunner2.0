@@ -101,35 +101,45 @@ class ThirdScreen extends StatelessWidget {
         backgroundColor: Colors.teal,
       ),
       body: Center(
-        child: OverflowBar(
-          alignment: MainAxisAlignment.start,
-          children: <Widget>[
-            //<Widget> to specify what is going to be inside this children list. It is safe and makes it easier to read.
-            TextButton(
-                child: const Text('Home Screen'),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const MyApp()),
-                  );
-                }),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AboutScreen(tag: 'visca')),    //HERO
-                );
-              },
-              child: Hero(                                                                //HERO
-                tag: 'visca', // Use the tag                                       //HERO
-                child: Image.asset(
-                  'images/FCB.png',
-                  width: 50, // Set the desired width
-                  height: 50, // Set the desired height
-                ),
+        child: Column(
+          children: [
+            Container(
+              height: 300,
+              color: Colors.grey[300], // Placeholder color
+              child: const Center(
+                child: Text('Google Maps Placeholder'),
               ),
             ),
-            const MyButton(),
+            OverflowBar(
+              alignment: MainAxisAlignment.start,
+              children: <Widget>[
+                TextButton(
+                    child: const Text('Home Screen'),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const MyApp()),
+                      );
+                    }),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AboutScreen(tag: 'visca')), // HERO
+                    );
+                  },
+                  child: Hero( // HERO
+                    tag: 'visca', // Use the tag // HERO
+                    child: Image.asset(
+                      'images/FCB.png',
+                      width: 50, // Set the desired width
+                      height: 50, // Set the desired height
+                    ),
+                  ),
+                ),
+                const MyButton(),
+              ],
+            ),
           ],
         ),
       ),
