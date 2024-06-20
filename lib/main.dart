@@ -104,12 +104,9 @@ class ThirdScreen extends StatelessWidget {
       body: Center(
         child: Column(
           children: [
-            Container(
+            const SizedBox(
               height: 300,
-              color: Colors.grey[300], // Placeholder color
-              child: const Center(
-                child: Text('Google Maps Placeholder'),
-              ),
+              child: Map(),
             ),
             OverflowBar(
               alignment: MainAxisAlignment.start,
@@ -178,7 +175,7 @@ class MyButton extends StatelessWidget {
     return GestureDetector(
       // When the child is tapped, show a snackbar.
       onTap: () {
-        const snackBar = SnackBar(content: Text('Tap'));
+        const snackBar = SnackBar(content: Text('Cosquillas'));
 
         ScaffoldMessenger.of(context).showSnackBar(snackBar);
       },
@@ -209,7 +206,7 @@ class Map extends StatefulWidget {
 class _MapState extends State<Map> {
   late GoogleMapController mapController;
 
-  final LatLng _center = const LatLng(-33.86, 151.20);
+  final LatLng _center = const LatLng(25.9108333, -097.4938889);
 
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
@@ -219,15 +216,12 @@ class _MapState extends State<Map> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Maps Sample App'),
-          backgroundColor: Colors.green[700],
-        ),
         body: GoogleMap(
           onMapCreated: _onMapCreated,
+          mapType: MapType.hybrid,
           initialCameraPosition: CameraPosition(
             target: _center,
-            zoom: 11.0,
+            zoom: 20.0,
           ),
         ),
       ),
