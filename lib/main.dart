@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-
+import 'package:location/location.dart';
 
 void main() {
   runApp(const MyApp());
@@ -73,9 +73,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 tooltip: 'Increment',
                 child: const Icon(Icons.add),
               ),
-              const SizedBox(height: 20),
-              TextButton(
-                  child: const Text('\nClick to Start Running'),
+              const SizedBox(height: 80),
+              ElevatedButton(
+                  child: const Text('Click to Start Running'),
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -99,7 +99,7 @@ class ThirdScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Third Page!'),
+        title: const Text('Current Run'),
         backgroundColor: Colors.teal,
       ),
       body: Center(
@@ -145,6 +145,7 @@ class ThirdScreen extends StatelessWidget {
     );
   }
 }
+
 
 class AboutScreen extends StatelessWidget {
   final String tag;                                   //HERO
@@ -205,26 +206,100 @@ class Map extends StatefulWidget {
 }
 
 class _MapState extends State<Map> {
-  late GoogleMapController mapController;
+  late GoogleMapController mapController;           //will be declared later
+  final Location location = Location();             //unmutable
+  LatLng _currentPosition = const LatLng(0, 0);
+  bool _locationObtained = false;
 
-  final LatLng _center = const LatLng(25.9108333, -097.4938889);
-
-  void _onMapCreated(GoogleMapController controller) {
-    mapController = controller;
-  }
+  double _currentSpeed = 0.0;
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        body: GoogleMap(
-          onMapCreated: _onMapCreated,
-          mapType: MapType.hybrid,
-          initialCameraPosition: CameraPosition(
-            target: _center,
-            zoom: 20.0,
+    void initState() {
+      super.initState();
+      _getCurrentLocation();
+      print("initState Called");
+    }
+
+
+  void _onMapCreated(GoogleMapController controller) {
+      print("_onMapCreated called");
+      mapController = controller;
+    }
+
+    Future<void> _getCurrentLocation() async {
+      print("_getCurrentLocation called");
+      bool serviceEnabled;
+      PermissionStatus permissionGranted;
+
+      serviceEnabled = await location.serviceEnabled();
+      print("Service enabled: $serviceEnabled");
+      if (!serviceEnabled) {
+        serviceEnabled = await location.requestService();
+        print("Service enabled after request: $serviceEnabled");
+        if (!serviceEnabled) {
+          return;
+        }
+      }
+
+      permissionGranted = await location.hasPermission();
+      print("Permission granted: $permissionGranted");
+      if (permissionGranted == PermissionStatus.denied) {
+        permissionGranted = await location.requestPermission();
+        print("Permission granted after request: $permissionGranted");
+        if (permissionGranted != PermissionStatus.granted) {
+          return;
+        }
+      }
+
+      try {
+            final locationData = await location.getLocation();
+            print("Location data: ${locationData.latitude}, ${locationData.longitude}"); // Log entry
+            print("Accuracy: ${locationData.accuracy}, Altitude: ${locationData.altitude}"); // More details
+            print('Current speed: ${locationData.speed} m/s');
+            setState(() {
+              _currentPosition = LatLng(locationData.latitude!, locationData.longitude!);
+              _locationObtained = true;
+            });
+          } catch (e) {
+            print("Error getting location: $e"); // Log entry
+          }
+
+      // Set up a listener for location changes
+      location.onLocationChanged.listen((LocationData currentLocation) {
+        print("Location updated: ${currentLocation.latitude}, ${currentLocation.longitude}, Speed: ${currentLocation.speed} m/s"); // Log entry
+        setState(() {
+          _currentPosition = LatLng(currentLocation.latitude!, currentLocation.longitude!);
+          _currentSpeed = currentLocation.speed!;
+        });
+        mapController.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(target: _currentPosition, zoom: 20),
           ),
-        ),
+        );
+      });
+    }
+
+    @override
+    Widget build(BuildContext context) {
+      print("Build method called"); // Log entry
+      return MaterialApp(
+        home: Scaffold(
+          appBar: AppBar(
+                  backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+                  title: Text('speed: ${_currentSpeed} m/s'),
+                ),
+          body: _locationObtained
+              ? GoogleMap(
+                  onMapCreated: _onMapCreated,
+                  mapType: MapType.hybrid,
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: true,
+                  initialCameraPosition: CameraPosition(
+                    target: _currentPosition,
+                    zoom: 15.0,
+                  ),
+                )
+              : const Center(child: CircularProgressIndicator()),
       ),
     );
   }
