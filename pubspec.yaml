@@ -37,6 +37,7 @@ dependencies:
   cupertino_icons: ^1.0.6
   google_maps_flutter: ^2.7.0
   location: ^7.0.0
+  flutter_polyline_points: 
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +65,7 @@ flutter:
   assets:
     - images/pacerunner.png
     - images/FCB.png
+    - images/pacerunner3.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:location/location.dart';
+
+import 'widgets/map.dart';
+import 'widgets/current_run.dart';
+
+void gmaps() => runApp(const Map());
 
 void main() {
   runApp(const MyApp());
@@ -12,7 +15,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'The PACERUNNER',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -32,14 +35,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -48,38 +43,27 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Container(
-        alignment: Alignment.center,
+        alignment: Alignment.bottomCenter,
         padding: const EdgeInsets.all(30),
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('images/pacerunner.png'),
+            image: AssetImage('images/pacerunner3.png'),
             fit: BoxFit.cover,
           ),
         ),
         child: SingleChildScrollView(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              const SizedBox(height: 250),
-              const Text(
-                'You have pushed the button this many times:',
+              const Icon(
+                Icons.run_circle,
+                color: Color.fromARGB(255, 255, 255, 255),
               ),
-              Text(
-                '$_counter',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              FloatingActionButton(
-                onPressed: _incrementCounter,
-                tooltip: 'Increment',
-                child: const Icon(Icons.add),
-              ),
-              const SizedBox(height: 80),
               ElevatedButton(
                   child: const Text('Click to Start Running'),
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const ThirdScreen()),
+                      MaterialPageRoute(builder: (_) => const CurrentRun()),
                     );
                   }),
             ],
@@ -89,8 +73,6 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
-
-
 
 class ThirdScreen extends StatelessWidget {
   const ThirdScreen({super.key});
@@ -113,7 +95,7 @@ class ThirdScreen extends StatelessWidget {
               alignment: MainAxisAlignment.start,
               children: <Widget>[
                 TextButton(
-                    child: const Text('Home Screen'),
+                    child: const Text('Full Screen Map'),
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -124,10 +106,13 @@ class ThirdScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const AboutScreen(tag: 'visca')), // HERO
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AboutScreen(tag: 'visca')), // HERO
                     );
                   },
-                  child: Hero( // HERO
+                  child: Hero(
+                    // HERO
                     tag: 'visca', // Use the tag // HERO
                     child: Image.asset(
                       'images/FCB.png',
@@ -146,10 +131,9 @@ class ThirdScreen extends StatelessWidget {
   }
 }
 
-
 class AboutScreen extends StatelessWidget {
-  final String tag;                                   //HERO
-  const AboutScreen({required this.tag, super.key});  //HERO
+  final String tag; //HERO
+  const AboutScreen({required this.tag, super.key}); //HERO
 
   @override
   Widget build(BuildContext context) {
@@ -160,7 +144,7 @@ class AboutScreen extends StatelessWidget {
       ),
       body: Center(
         child: Hero(
-          tag: tag,                                     //HERO
+          tag: tag, //HERO
           child: Image.asset('images/FCB.png'),
         ),
       ),
@@ -189,117 +173,6 @@ class MyButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Text('My Button'),
-      ),
-    );
-  }
-}
-
-
-
-void gmaps() => runApp(const Map());
-
-class Map extends StatefulWidget {
-  const Map({super.key});
-
-  @override
-  State<Map> createState() => _MapState();
-}
-
-class _MapState extends State<Map> {
-  late GoogleMapController mapController;           //will be declared later
-  final Location location = Location();             //unmutable
-  LatLng _currentPosition = const LatLng(0, 0);
-  bool _locationObtained = false;
-
-  double _currentSpeed = 0.0;
-
-  @override
-    void initState() {
-      super.initState();
-      _getCurrentLocation();
-      print("initState Called");
-    }
-
-
-  void _onMapCreated(GoogleMapController controller) {
-      print("_onMapCreated called");
-      mapController = controller;
-    }
-
-    Future<void> _getCurrentLocation() async {
-      print("_getCurrentLocation called");
-      bool serviceEnabled;
-      PermissionStatus permissionGranted;
-
-      serviceEnabled = await location.serviceEnabled();
-      print("Service enabled: $serviceEnabled");
-      if (!serviceEnabled) {
-        serviceEnabled = await location.requestService();
-        print("Service enabled after request: $serviceEnabled");
-        if (!serviceEnabled) {
-          return;
-        }
-      }
-
-      permissionGranted = await location.hasPermission();
-      print("Permission granted: $permissionGranted");
-      if (permissionGranted == PermissionStatus.denied) {
-        permissionGranted = await location.requestPermission();
-        print("Permission granted after request: $permissionGranted");
-        if (permissionGranted != PermissionStatus.granted) {
-          return;
-        }
-      }
-
-      try {
-            final locationData = await location.getLocation();
-            print("Location data: ${locationData.latitude}, ${locationData.longitude}"); // Log entry
-            print("Accuracy: ${locationData.accuracy}, Altitude: ${locationData.altitude}"); // More details
-            print('Current speed: ${locationData.speed} m/s');
-            setState(() {
-              _currentPosition = LatLng(locationData.latitude!, locationData.longitude!);
-              _locationObtained = true;
-            });
-          } catch (e) {
-            print("Error getting location: $e"); // Log entry
-          }
-
-      // Set up a listener for location changes
-      location.onLocationChanged.listen((LocationData currentLocation) {
-        print("Location updated: ${currentLocation.latitude}, ${currentLocation.longitude}, Speed: ${currentLocation.speed} m/s"); // Log entry
-        setState(() {
-          _currentPosition = LatLng(currentLocation.latitude!, currentLocation.longitude!);
-          _currentSpeed = currentLocation.speed!;
-        });
-        mapController.animateCamera(
-          CameraUpdate.newCameraPosition(
-            CameraPosition(target: _currentPosition, zoom: 20),
-          ),
-        );
-      });
-    }
-
-    @override
-    Widget build(BuildContext context) {
-      print("Build method called"); // Log entry
-      return MaterialApp(
-        home: Scaffold(
-          appBar: AppBar(
-                  backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-                  title: Text('speed: ${_currentSpeed} m/s'),
-                ),
-          body: _locationObtained
-              ? GoogleMap(
-                  onMapCreated: _onMapCreated,
-                  mapType: MapType.hybrid,
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
-                  initialCameraPosition: CameraPosition(
-                    target: _currentPosition,
-                    zoom: 15.0,
-                  ),
-                )
-              : const Center(child: CircularProgressIndicator()),
       ),
     );
   }
