@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 
 import 'widgets/map.dart';
 import 'widgets/current_run.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void gmaps() => runApp(const Map());
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

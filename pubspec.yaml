@@ -38,6 +38,7 @@ dependencies:
   google_maps_flutter: ^2.7.0
   location: ^7.0.0
   flutter_polyline_points: 
+  flutter_riverpod: 
 
 dev_dependencies:
   flutter_test:

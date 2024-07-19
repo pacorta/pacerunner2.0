@@ -4,28 +4,32 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 
-class Map extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'speed_provider.dart';
+
+class Map extends ConsumerStatefulWidget {
   const Map({super.key});
 
   @override
-  State<Map> createState() => _MapState();
+  ConsumerState<Map> createState() => _MapState(); //riverpod "consumer"
 }
 
-class _MapState extends State<Map> {
-  GoogleMapController?
-      mapController; //will be declared later //changed to (?) nullable from "late"
+class _MapState extends ConsumerState<Map> {
+  GoogleMapController? mapController;
   final Location location = Location(); //unmutable
   LatLng _currentPosition = const LatLng(0, 0);
-  bool _locationObtained = false;
+  bool _locationObtained = false; //map FS
 //speed
-  double _currentSpeed = 0.0;
+  double _currentSpeed =
+      0.0; //                                                           state
 //polyline points
   PolylinePoints polylinePoints = PolylinePoints();
-  List<LatLng> polylineCoordinates = [];
-//timer
-  final Stopwatch _stopwatch = Stopwatch();
-  Timer? _timer;
-  String _elapsedTime = '00:00:00';
+  List<LatLng> polylineCoordinates = []; //map FS
+
+  double getSpeedInMph() {
+    return _currentSpeed * 2.23694;
+  }
+
 //subscription to check the gathering of data as on/off
   StreamSubscription<LocationData>?
       locationSubscription; // From the async library
@@ -34,7 +38,7 @@ class _MapState extends State<Map> {
   void initState() {
     super.initState();
     _getCurrentLocation();
-    _startTimer();
+    //_startTimer();
   }
 
   @override
@@ -57,7 +61,8 @@ class _MapState extends State<Map> {
     }
   }
 
-  Future<void> _getCurrentLocation() async {
+  void _getCurrentLocation() async {
+    //to implement riverpod
     //print("_getCurrentLocation called");
     bool serviceEnabled;
     PermissionStatus permissionGranted;
@@ -108,6 +113,10 @@ class _MapState extends State<Map> {
           _currentPosition =
               LatLng(currentLocation.latitude!, currentLocation.longitude!);
           _currentSpeed = currentLocation.speed!;
+          double speedInMph =
+              getSpeedInMph(); //notifying convertion of mps to mph of the _currentSpeed
+          ref.read(speedProvider.notifier).state =
+              speedInMph; // notifier for riverpod
           LatLng newPoint =
               LatLng(currentLocation.latitude!, currentLocation.longitude!);
           _updatePolyline(newPoint);
@@ -125,53 +134,15 @@ class _MapState extends State<Map> {
     });
   }
 
-  void _startTimer() {
-    _stopwatch.start();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        _elapsedTime = _formatDuration(_stopwatch.elapsed);
-      });
-    });
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, "0");
-    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
-  }
-
-  void _endRun() {
-    _stopwatch.stop();
-    _timer?.cancel();
-    // Here you can add code to save the run data, show a summary, etc.
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Run Completed'),
-        content: Text('Your run lasted $_elapsedTime'),
-        actions: [
-          TextButton(
-            child: const Text('OK'),
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop(); // Return to home screen
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(
+        /*appBar: AppBar(
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           title:
               Text('Speed: $_currentSpeed m/s \n Elapsed Time: $_elapsedTime'),
-        ),
+        ),*/
         body: _locationObtained
             ? Stack(
                 children: [
@@ -193,10 +164,27 @@ class _MapState extends State<Map> {
                       ),
                     },
                   ),
+                  /*
                   Positioned(
                     left: 0,
                     right: 0,
-                    bottom: 0,
+                    bottom: 100,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color.fromARGB(255, 90, 62, 203),
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                      ),
+                      onPressed: _endRun,
+                      child: const Text(
+                        'STOP',
+                        style: TextStyle(fontSize: 30),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 70,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
@@ -206,10 +194,11 @@ class _MapState extends State<Map> {
                       onPressed: _endRun,
                       child: const Text(
                         'STOP',
-                        style: TextStyle(fontSize: 24),
+                        style: TextStyle(fontSize: 30),
                       ),
                     ),
                   ),
+                  */
                 ],
               )
             : const Center(child: CircularProgressIndicator()),
