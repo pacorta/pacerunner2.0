@@ -16,7 +16,7 @@ class _ProgressBarState extends State<ProgressBar>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 10),
       vsync: this,
     );
 
@@ -44,8 +44,9 @@ class _ProgressBarState extends State<ProgressBar>
         body: Center(
           child: LinearProgressIndicator(
             value: _animation.value,
-            backgroundColor: Colors.grey[300],
-            valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+            backgroundColor: const Color.fromARGB(255, 255, 0, 0),
+            valueColor: const AlwaysStoppedAnimation<Color>(
+                Color.fromARGB(255, 17, 220, 91)),
           ),
         ),
       ),

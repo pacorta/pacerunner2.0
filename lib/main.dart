@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:untitled/widgets/progress_bar.dart';
 
 import 'widgets/map.dart';
 import 'widgets/current_run.dart';
@@ -8,6 +9,8 @@ void gmaps() => runApp(const Map());
 
 void main() {
   runApp(
+    //(1)ProviderScope wraps the entire app, providing a container for all providers defined in the app.
+    //It's crucial because it initializes the provider system and allows the state managed by providers to be shared across the widget tree.
     const ProviderScope(
       child: MyApp(),
     ),
@@ -22,7 +25,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'The PACERUNNER',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color.fromARGB(255, 255, 255, 255)),
         useMaterial3: true,
       ),
       home: const MyHomePage(title: 'The Pacerunner Home Screen'),
@@ -52,7 +56,7 @@ class _MyHomePageState extends State<MyHomePage> {
         padding: const EdgeInsets.all(30),
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('images/pacerunner3.png'),
+            image: AssetImage('images/pacerunner4.png'),
             fit: BoxFit.cover,
           ),
         ),
@@ -69,6 +73,14 @@ class _MyHomePageState extends State<MyHomePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const CurrentRun()),
+                    );
+                  }),
+              ElevatedButton(
+                  child: const Text('Progress Bar Demo'),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ProgressBar()),
                     );
                   }),
             ],

@@ -1,27 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:untitled/widgets/results.dart';
 import 'dart:async';
 import 'map.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'speed_provider.dart';
-
-/*
-class CurrentRun extends StatelessWidget {
-  const CurrentRun({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.teal,
-      appBar: AppBar(
-        title: const Text('Current Run'),
-        backgroundColor: Colors.teal,
-      ),
-      body: const Map(),
-    );
-  }
-}
-*/
 
 class CurrentRun extends ConsumerStatefulWidget {
   const CurrentRun({super.key});
@@ -31,7 +14,6 @@ class CurrentRun extends ConsumerStatefulWidget {
 }
 
 class _CurrentRunState extends ConsumerState<CurrentRun> {
-  //error here: 'CurrentRun' doesn't conform to the bound 'ConsumerStatefulWidget' of the type parameter 'T'. Try using a type that is or is a subclass of 'ConsumerStatefulWidget'.darttype_argument_not_matching_bounds.
   final Stopwatch _stopwatch = Stopwatch();
   Timer? _timer;
   String _elapsedTime = '00:00:00';
@@ -59,6 +41,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
   }
 
   void _endRun() {
+    //_distanceCalculator.stop();
     _stopwatch.stop();
     _timer?.cancel();
     // Add code to save the run data, show a summary, etc.
@@ -66,13 +49,21 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Run Completed'),
-        content: Text('Your run lasted $_elapsedTime'),
+        content: Text('Run Time: $_elapsedTime \nDistance Traveled: XXX'),
         actions: [
           TextButton(
             child: const Text('OK'),
             onPressed: () {
               Navigator.of(context).pop();
               Navigator.of(context).pop(); // Return to home screen
+              /*
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        const Results()), //Results is not accessible :(
+              );
+              */
             },
           ),
         ],
@@ -130,7 +121,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 235, 121, 79),
+                    color: Colors.white.withOpacity(0.7),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   //Added speed from the new speed variable that borrows
@@ -144,8 +135,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 235, 121, 79)
-                        .withOpacity(0.7),
+                    color: Colors.white.withOpacity(0.7),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(

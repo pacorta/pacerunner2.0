@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:untitled/widgets/distance_provider.dart';
 import 'speed_provider.dart';
+import 'dart:math' as math;
 
 class Map extends ConsumerStatefulWidget {
   const Map({super.key});
@@ -18,17 +19,23 @@ class _MapState extends ConsumerState<Map> {
   GoogleMapController? mapController;
   final Location location = Location(); //unmutable
   LatLng _currentPosition = const LatLng(0, 0);
-  bool _locationObtained = false; //map FS
-//speed
-  double _currentSpeed =
-      0.0; //                                                           state
+  bool _locationObtained = false;
+
 //polyline points
   PolylinePoints polylinePoints = PolylinePoints();
   List<LatLng> polylineCoordinates = []; //map FS
 
+//speed
+  double _currentSpeed =
+      0.0; //                                                           state
   double getSpeedInMph() {
     return _currentSpeed * 2.23694;
   }
+
+//Calculate Distance Travelled
+  List<LocationData> _locations = [];
+  double _totalDistance = 0.0;
+  bool _isTracking = false;
 
 //subscription to check the gathering of data as on/off
   StreamSubscription<LocationData>?
@@ -117,6 +124,18 @@ class _MapState extends ConsumerState<Map> {
               getSpeedInMph(); //notifying convertion of mps to mph of the _currentSpeed
           ref.read(speedProvider.notifier).state =
               speedInMph; // notifier for riverpod
+          //Distance notifiers
+          if (_locations.isNotEmpty) {
+            _totalDistance += _calculateDistance(
+              _locations.last.latitude!,
+              _locations.last.longitude!,
+              currentLocation.latitude!,
+              currentLocation.longitude!,
+            );
+          }
+          _locations.add(currentLocation);
+          ref.read(distanceProvider.notifier).state = _totalDistance;
+          //polylines
           LatLng newPoint =
               LatLng(currentLocation.latitude!, currentLocation.longitude!);
           _updatePolyline(newPoint);
@@ -134,6 +153,75 @@ class _MapState extends ConsumerState<Map> {
     });
   }
 
+//calculate distance START
+//First attempt is through a local button, I'm going to make it available everywhere by using consumerState
+  void _startTracking() {
+    setState(() {
+      _isTracking = true;
+      _locations = [];
+      _totalDistance = 0.0;
+    });
+
+    location.onLocationChanged.listen((LocationData currentLocation) {
+      if (_isTracking) {
+        if (_locations.isNotEmpty) {
+          _totalDistance += _calculateDistance(
+            _locations.last.latitude!,
+            _locations.last.longitude!,
+            currentLocation.latitude!,
+            currentLocation.longitude!,
+          );
+        }
+        _locations.add(currentLocation);
+        ref.read(distanceProvider.notifier).state = _totalDistance;
+      }
+      if (mounted) {
+        setState(() {
+          _currentPosition =
+              LatLng(currentLocation.latitude!, currentLocation.longitude!);
+          _currentSpeed = currentLocation.speed!;
+          double speedInMph = getSpeedInMph();
+          ref.read(speedProvider.notifier).state =
+              speedInMph; //notifier for riverpod
+
+          LatLng newPoint =
+              LatLng(currentLocation.latitude!, currentLocation.longitude!);
+          _updatePolyline(newPoint);
+          location.changeSettings(accuracy: LocationAccuracy.high);
+          if (mapController != null) {
+            mapController!.animateCamera(
+              CameraUpdate.newCameraPosition(
+                CameraPosition(target: _currentPosition, zoom: 20),
+              ),
+            );
+          }
+        });
+      }
+    });
+  }
+
+  void _stopTracking() {
+    setState(() {
+      _isTracking = false;
+    });
+
+    locationSubscription?.cancel();
+
+    // At this point, _totalDistance holds the total distance traveled.
+    print('Total Distance Traveled: ${_totalDistance.toStringAsFixed(2)} km');
+  }
+
+  double _calculateDistance(
+      double lat1, double lon1, double lat2, double lon2) {
+    var p = 0.017453292519943295; // PI / 180
+    var c = math.cos;
+    var a = 0.5 -
+        c((lat2 - lat1) * p) / 2 +
+        c(lat1 * p) * c(lat2 * p) * (1 - c((lon2 - lon1) * p)) / 2;
+    return 12742 * math.asin(math.sqrt(a)); // 2 * R * asin(sqrt(a))
+  }
+
+//calculate distance END
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -164,7 +252,6 @@ class _MapState extends ConsumerState<Map> {
                       ),
                     },
                   ),
-                  /*
                   Positioned(
                     left: 0,
                     right: 0,
@@ -174,31 +261,13 @@ class _MapState extends ConsumerState<Map> {
                         backgroundColor: const Color.fromARGB(255, 90, 62, 203),
                         padding: const EdgeInsets.symmetric(vertical: 20),
                       ),
-                      onPressed: _endRun,
-                      child: const Text(
-                        'STOP',
-                        style: TextStyle(fontSize: 30),
+                      onPressed: _isTracking ? _stopTracking : _startTracking,
+                      child: Text(
+                        _isTracking ? 'STOP' : 'START',
+                        style: const TextStyle(fontSize: 30),
                       ),
                     ),
                   ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 70,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            const Color.fromARGB(255, 210, 110, 57),
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                      ),
-                      onPressed: _endRun,
-                      child: const Text(
-                        'STOP',
-                        style: TextStyle(fontSize: 30),
-                      ),
-                    ),
-                  ),
-                  */
                 ],
               )
             : const Center(child: CircularProgressIndicator()),
