@@ -5,6 +5,9 @@ import 'widgets/map.dart';
 import 'widgets/current_run.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'widgets/tracking_provider.dart';
+import 'widgets/distance_provider.dart';
+
 void gmaps() => runApp(const Map());
 
 void main() {
@@ -34,18 +37,20 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatefulWidget {
+class MyHomePage extends ConsumerStatefulWidget {
   const MyHomePage({super.key, required this.title});
 
   final String title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  ConsumerState<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends ConsumerState<MyHomePage> {
   @override
   Widget build(BuildContext context) {
+    final isTracking = ref.watch(trackingProvider);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -70,6 +75,16 @@ class _MyHomePageState extends State<MyHomePage> {
               ElevatedButton(
                   child: const Text('Click to Start Running'),
                   onPressed: () {
+                    final trackingNotifier =
+                        ref.read(trackingProvider.notifier);
+                    if (isTracking) {
+                      trackingNotifier.state = false;
+                      print(
+                          'Traveled distance: ${ref.read(distanceProvider).toStringAsFixed(2)} km');
+                    } else {
+                      trackingNotifier.state = true;
+                      ref.read(distanceProvider.notifier).state = 0.0;
+                    }
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const CurrentRun()),

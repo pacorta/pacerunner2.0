@@ -4,7 +4,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:untitled/widgets/distance_provider.dart';
+import 'distance_provider.dart';
+import 'tracking_provider.dart';
 import 'speed_provider.dart';
 import 'dart:math' as math;
 
@@ -33,9 +34,9 @@ class _MapState extends ConsumerState<Map> {
   }
 
 //Calculate Distance Travelled
-  List<LocationData> _locations = [];
-  double _totalDistance = 0.0;
-  bool _isTracking = false;
+  final List<LocationData> _locations = [];
+  //double _totalDistance = 0.0; //#istrackingchanges: Own file: distance_provider.dart
+  //bool _isTracking = false;     #istrackingchanges: This one we move it to its own file, tracking_provider.dart
 
 //subscription to check the gathering of data as on/off
   StreamSubscription<LocationData>?
@@ -125,16 +126,21 @@ class _MapState extends ConsumerState<Map> {
           ref.read(speedProvider.notifier).state =
               speedInMph; // notifier for riverpod
           //Distance notifiers
-          if (_locations.isNotEmpty) {
-            _totalDistance += _calculateDistance(
-              _locations.last.latitude!,
-              _locations.last.longitude!,
-              currentLocation.latitude!,
-              currentLocation.longitude!,
-            );
+          if (ref.read(trackingProvider)) {
+            if (_locations.isNotEmpty) {
+              double additionalDistance = _calculateDistance(
+                _locations.last.latitude!,
+                _locations.last.longitude!,
+                currentLocation.latitude!,
+                currentLocation.longitude!,
+              );
+              ref.read(distanceProvider.notifier).state += additionalDistance;
+            }
+            _locations.add(currentLocation);
           }
-          _locations.add(currentLocation);
-          ref.read(distanceProvider.notifier).state = _totalDistance;
+
+          //_locations.add(currentLocation);
+          //ref.read(distanceProvider.notifier).state = _totalDistance;
           //polylines
           LatLng newPoint =
               LatLng(currentLocation.latitude!, currentLocation.longitude!);
@@ -155,15 +161,20 @@ class _MapState extends ConsumerState<Map> {
 
 //calculate distance START
 //First attempt is through a local button, I'm going to make it available everywhere by using consumerState
+
+//#distanceprovider
+/*
   void _startTracking() {
     setState(() {
-      _isTracking = true;
+      //_isTracking = true;   //#istrackingchanges move to higher state
       _locations = [];
       _totalDistance = 0.0;
     });
 
     location.onLocationChanged.listen((LocationData currentLocation) {
-      if (_isTracking) {
+      if (ref.read(trackingProvider.notifier).state) {
+        // #istrackingchanges #doubtful
+        //if (_isTracking) {
         if (_locations.isNotEmpty) {
           _totalDistance += _calculateDistance(
             _locations.last.latitude!,
@@ -182,12 +193,13 @@ class _MapState extends ConsumerState<Map> {
           _currentSpeed = currentLocation.speed!;
           double speedInMph = getSpeedInMph();
           ref.read(speedProvider.notifier).state =
-              speedInMph; //notifier for riverpod
+              speedInMph; //notifier for riverpod for speed_provider
 
           LatLng newPoint =
               LatLng(currentLocation.latitude!, currentLocation.longitude!);
           _updatePolyline(newPoint);
           location.changeSettings(accuracy: LocationAccuracy.high);
+
           if (mapController != null) {
             mapController!.animateCamera(
               CameraUpdate.newCameraPosition(
@@ -201,16 +213,19 @@ class _MapState extends ConsumerState<Map> {
   }
 
   void _stopTracking() {
+    //#istrackingchanges remove setstate
+    /*
     setState(() {
       _isTracking = false;
     });
+    */
 
     locationSubscription?.cancel();
 
     // At this point, _totalDistance holds the total distance traveled.
     print('Total Distance Traveled: ${_totalDistance.toStringAsFixed(2)} km');
   }
-
+*/
   double _calculateDistance(
       double lat1, double lon1, double lat2, double lon2) {
     var p = 0.017453292519943295; // PI / 180
@@ -226,11 +241,6 @@ class _MapState extends ConsumerState<Map> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        /*appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-          title:
-              Text('Speed: $_currentSpeed m/s \n Elapsed Time: $_elapsedTime'),
-        ),*/
         body: _locationObtained
             ? Stack(
                 children: [
@@ -247,11 +257,13 @@ class _MapState extends ConsumerState<Map> {
                       Polyline(
                         polylineId: const PolylineId('route'),
                         points: polylineCoordinates,
-                        color: const Color.fromARGB(255, 243, 103, 33),
+                        color: const Color.fromARGB(255, 238, 0, 255),
                         width: 5,
                       ),
                     },
                   ),
+                  //#istrackingchanges remove this button and move to CurrentRun
+                  /*
                   Positioned(
                     left: 0,
                     right: 0,
@@ -268,6 +280,7 @@ class _MapState extends ConsumerState<Map> {
                       ),
                     ),
                   ),
+                  */
                 ],
               )
             : const Center(child: CircularProgressIndicator()),

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:untitled/widgets/results.dart';
 import 'dart:async';
 import 'map.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'speed_provider.dart';
+import 'tracking_provider.dart';
+import 'distance_provider.dart';
 
 class CurrentRun extends ConsumerStatefulWidget {
   const CurrentRun({super.key});
@@ -49,7 +49,8 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Run Completed'),
-        content: Text('Run Time: $_elapsedTime \nDistance Traveled: XXX'),
+        content: Text(
+            'Run Time: $_elapsedTime \nTraveled distance: ${ref.read(distanceProvider).toStringAsFixed(2)} km'),
         actions: [
           TextButton(
             child: const Text('OK'),
@@ -93,7 +94,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                 const SizedBox(
                   height: 500,
                   child: Map(),
-                ), // This will fill the entire expanded area
+                ),
                 Positioned(
                   top: 10,
                   left: 10,
@@ -124,7 +125,6 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                     color: Colors.white.withOpacity(0.7),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  //Added speed from the new speed variable that borrows
                   child: Text(
                     'Speed: ${speed.toStringAsFixed(2)} mph',
                     style: const TextStyle(
@@ -143,6 +143,16 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                     style: const TextStyle(
                         color: Colors.white, fontWeight: FontWeight.bold),
                   ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                      'Traveled distance: ${ref.read(distanceProvider).toStringAsFixed(2)} km'),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
