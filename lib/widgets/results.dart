@@ -1,4 +1,3 @@
-/*
 import 'package:flutter/material.dart';
 import 'speed_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,5 +32,3 @@ class _ResultsState extends ConsumerState<Results> {
     );
   }
 }
-
-*/

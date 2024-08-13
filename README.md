@@ -24,6 +24,12 @@ The app displays the speed in mph instead of the default m/s.
 
 The app now calculates the user’s traveled distance from the moment they press “start running” and the total distance (so far) is displayed during the run. The total distance will be displayed on a pop up screen for run stats after the user presses “end run”.
 
+We've moved from local state (_totalDistance) to global state management (distanceProvider).
+Tracking control has shifted from explicit methods to a state-driven approach using trackingProvider.
+The app now reacts to state changes, making it more flexible and easier to manage.
+
+
+
 ###To-Do List
 - [ ] Make a summary page that includes the following (after checking the data you already have below): 
     - [ ] Total trip’s polyline representation
@@ -33,6 +39,23 @@ The app now calculates the user’s traveled distance from the moment they press
 - [ ] Main goal: add a “progress bar” that checks the speed of the runner compared to an ideal speed:   [—————(actual pace (too slow))——————————(best pace)————(actual pace (too fast))——————]
 - [ ] Remove the user’s ability to go back to the home screen by clicking the “back” arrow button or sliding back because this can lead to “data loss error”. 
 
+
+
+##8/12/2024
+
+The app lets the user choose between miles and km in the Home Screen, which will be reflected in the ‘Current Run’ screen.
+App can check the user’s pace (pace 1 = hr/distance). This is good, but I still need the pace (pace 2 = distance/hr).
+I’m thinking of using pace1 for the functionality of the pacerunner because pace1 tells me how long it’ll take the user to complete 1 mile. Pace2 should be the one the user sees because I notice other running apps use this one and users are already used to this.
+I found that GoogleMapsController has a function called “captureMapScreenshot()” which would allow me to get a screenshot of the overall path traveled by the user, hopefully the polyline also shows.
+
+###To-Do List
+- [ ] Make a summary page that includes the following (after checking the data you already have below): 
+    - [ ] Total trip’s polyline representation (maybe using captureMapScreenshot() )
+    - [x] Pace1
+    - [ ] Pace2
+    - [x] Total Distance
+    - [x] Time elapsed
+- [ ] Main goal: add a “progress bar” that checks the speed of the runner compared to an ideal speed:   [—————(actual pace (too slow))——————————(best pace)————(actual pace (too fast))——————]
 
 Resources:
 

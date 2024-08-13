@@ -44,9 +44,9 @@ class _ProgressBarState extends State<ProgressBar>
         body: Center(
           child: LinearProgressIndicator(
             value: _animation.value,
-            backgroundColor: const Color.fromARGB(255, 255, 0, 0),
+            backgroundColor: const Color.fromARGB(255, 255, 136, 0),
             valueColor: const AlwaysStoppedAnimation<Color>(
-                Color.fromARGB(255, 17, 220, 91)),
+                Color.fromARGB(255, 220, 71, 17)),
           ),
         ),
       ),

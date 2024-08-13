@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:untitled/widgets/progress_bar.dart';
+import 'package:untitled/widgets/unit_preference_provider.dart';
 
 import 'widgets/map.dart';
 import 'widgets/current_run.dart';
@@ -61,29 +62,50 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
         padding: const EdgeInsets.all(30),
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('images/pacerunner4.png'),
+            image: AssetImage('images/pacerunner6.png'),
             fit: BoxFit.cover,
           ),
         ),
         child: SingleChildScrollView(
           child: Column(
             children: <Widget>[
-              const Icon(
-                Icons.run_circle,
-                color: Color.fromARGB(255, 255, 255, 255),
+              //#km2miles
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(
+                      child: Text('km/mi'),
+                    ),
+                    Switch(
+                      value:
+                          ref.watch(distanceUnitProvider) == DistanceUnit.miles,
+                      onChanged: (value) {
+                        ref.read(distanceUnitProvider.notifier).state = value
+                            ? DistanceUnit.miles
+                            : DistanceUnit.kilometers;
+                      },
+                    ),
+                  ],
+                ),
               ),
               ElevatedButton(
                   child: const Text('Click to Start Running'),
                   onPressed: () {
-                    final trackingNotifier =
-                        ref.read(trackingProvider.notifier);
+                    final trackingNotifier = ref.read(trackingProvider
+                        .notifier); //Use ref.read(provider) when you want to read a value without rebuilding the widget.
                     if (isTracking) {
                       trackingNotifier.state = false;
                       print(
                           'Traveled distance: ${ref.read(distanceProvider).toStringAsFixed(2)} km');
                     } else {
                       trackingNotifier.state = true;
-                      ref.read(distanceProvider.notifier).state = 0.0;
+                      ref.read(distanceProvider.notifier).state =
+                          0.0; //Use ref.read(provider) when you want to read a value without rebuilding the widget.
                     }
                     Navigator.push(
                       context,

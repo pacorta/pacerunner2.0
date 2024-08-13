@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:untitled/widgets/elapsed_time_provider.dart';
 import 'dart:async';
 import 'map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'speed_provider.dart';
-import 'tracking_provider.dart';
 import 'distance_provider.dart';
+import 'pace_provider.dart';
 
 class CurrentRun extends ConsumerStatefulWidget {
   const CurrentRun({super.key});
@@ -16,7 +17,13 @@ class CurrentRun extends ConsumerStatefulWidget {
 class _CurrentRunState extends ConsumerState<CurrentRun> {
   final Stopwatch _stopwatch = Stopwatch();
   Timer? _timer;
-  String _elapsedTime = '00:00:00';
+  //String _elapsedTime = '00:00:00';
+
+/*
+  double avgPace(){
+    return _elapsedTime/ref.read(distanceProvider).toStringAsFixed(2);
+  }
+*/
 
   @override
   void initState() {
@@ -28,7 +35,8 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     _stopwatch.start();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
-        _elapsedTime = _formatDuration(_stopwatch.elapsed);
+        final newTime = _formatDuration(_stopwatch.elapsed);
+        ref.read(elapsedTimeProvider.notifier).state = newTime;
       });
     });
   }
@@ -50,7 +58,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
       builder: (context) => AlertDialog(
         title: const Text('Run Completed'),
         content: Text(
-            'Run Time: $_elapsedTime \nTraveled distance: ${ref.read(distanceProvider).toStringAsFixed(2)} km'),
+            'Run Time: $elapsedTimeProvider \nTraveled distance: ${ref.read(distanceProvider).toStringAsFixed(2)} km \nAverage Pace: '),
         actions: [
           TextButton(
             child: const Text('OK'),
@@ -75,16 +83,16 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
   @override
   Widget build(BuildContext context) {
     final speed = ref.watch(speedProvider);
+    final formattedDistance = ref.watch(formattedDistanceProvider); //#km2miles
+    final elapsedTime = ref.watch(elapsedTimeProvider);
+    final pace = ref.watch(paceProvider);
 
     return Scaffold(
       backgroundColor: Colors.teal,
       appBar: AppBar(
         title: const Text('Current Run'),
         backgroundColor: Colors.teal,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        automaticallyImplyLeading: false,
       ),
       body: Column(
         children: [
@@ -105,7 +113,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      _elapsedTime,
+                      elapsedTime,
                       style: const TextStyle(
                           fontSize: 24, fontWeight: FontWeight.bold),
                     ),
@@ -114,8 +122,9 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
               ],
             ),
           ),
+          const SizedBox(height: 4),
           Container(
-            padding: const EdgeInsets.all(40),
+            padding: const EdgeInsets.all(20),
             child: Column(
               children: [
                 Container(
@@ -126,11 +135,12 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'Speed: ${speed.toStringAsFixed(2)} mph',
+                    'SPEED: ${speed.toStringAsFixed(2)} mph',
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
+                const SizedBox(height: 4),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -139,11 +149,14 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    _elapsedTime,
+                    'DISTANCE: $formattedDistance',
                     style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold),
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
+                const SizedBox(height: 16),
+                const SizedBox(
+                    child: Image(image: AssetImage('images/pacebar.png'))),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -152,7 +165,10 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                      'Traveled distance: ${ref.read(distanceProvider).toStringAsFixed(2)} km'),
+                    'CURRENT PACE: $pace',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(

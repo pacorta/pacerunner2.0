@@ -76,6 +76,9 @@ flutter:
     - images/pacerunner3.png
     - images/pacerunner4.png
     - images/pacerunner5.png
+    - images/pacerunner6.png
+    - images/background.png
+    - images/pacebar.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

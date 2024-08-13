@@ -262,25 +262,6 @@ class _MapState extends ConsumerState<Map> {
                       ),
                     },
                   ),
-                  //#istrackingchanges remove this button and move to CurrentRun
-                  /*
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 100,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(255, 90, 62, 203),
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                      ),
-                      onPressed: _isTracking ? _stopTracking : _startTracking,
-                      child: Text(
-                        _isTracking ? 'STOP' : 'START',
-                        style: const TextStyle(fontSize: 30),
-                      ),
-                    ),
-                  ),
-                  */
                 ],
               )
             : const Center(child: CircularProgressIndicator()),
