@@ -5,7 +5,9 @@ import 'map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'speed_provider.dart';
 import 'distance_provider.dart';
-import 'pace_provider.dart';
+import 'average_pace_provider.dart';
+import 'current_pace_provider.dart';
+import 'pace_bar.dart';
 
 class CurrentRun extends ConsumerStatefulWidget {
   const CurrentRun({super.key});
@@ -58,11 +60,13 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
       builder: (context) => AlertDialog(
         title: const Text('Run Completed'),
         content: Text(
-            'Run Time: $elapsedTimeProvider \nTraveled distance: ${ref.read(distanceProvider).toStringAsFixed(2)} km \nAverage Pace: '),
+            'Run Time: ${ref.read(elapsedTimeProvider)} \nTraveled distance: ${ref.read(formattedDistanceProvider)}\nAverage Pace: ${ref.read(averagePaceProvider)} '),
         actions: [
           TextButton(
             child: const Text('OK'),
             onPressed: () {
+              //reset time and distance to 0.
+
               Navigator.of(context).pop();
               Navigator.of(context).pop(); // Return to home screen
               /*
@@ -70,7 +74,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                 context,
                 MaterialPageRoute(
                     builder: (_) =>
-                        const Results()), //Results is not accessible :(
+                        const Results()), //Results is not accessible yet :(
               );
               */
             },
@@ -82,16 +86,17 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
 
   @override
   Widget build(BuildContext context) {
-    final speed = ref.watch(speedProvider);
+    final speed = ref.watch(formattedSpeedProvider);
     final formattedDistance = ref.watch(formattedDistanceProvider); //#km2miles
     final elapsedTime = ref.watch(elapsedTimeProvider);
-    final pace = ref.watch(paceProvider);
+    final avgPace = ref.watch(averagePaceProvider);
+    final currentPace = ref.watch(currentPaceProvider);
 
     return Scaffold(
       backgroundColor: Colors.teal,
       appBar: AppBar(
         title: const Text('Current Run'),
-        backgroundColor: Colors.teal,
+        backgroundColor: const Color.fromARGB(255, 157, 210, 223),
         automaticallyImplyLeading: false,
       ),
       body: Column(
@@ -135,7 +140,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'SPEED: ${speed.toStringAsFixed(2)} mph',
+                    'SPEED: $speed',
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.bold),
                   ),
@@ -155,8 +160,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const SizedBox(
-                    child: Image(image: AssetImage('images/pacebar.png'))),
+                const PaceBar(),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -165,7 +169,20 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'CURRENT PACE: $pace',
+                    'AVERAGE PACE: $avgPace',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'CURRENT PACE: $currentPace',
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.bold),
                   ),

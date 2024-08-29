@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'widgets/tracking_provider.dart';
 import 'widgets/distance_provider.dart';
 
+import 'widgets/pace_bar.dart';
+
 void gmaps() => runApp(const Map());
 
 void main() {
@@ -69,30 +71,6 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
         child: SingleChildScrollView(
           child: Column(
             children: <Widget>[
-              //#km2miles
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    const SizedBox(
-                      child: Text('km/mi'),
-                    ),
-                    Switch(
-                      value:
-                          ref.watch(distanceUnitProvider) == DistanceUnit.miles,
-                      onChanged: (value) {
-                        ref.read(distanceUnitProvider.notifier).state = value
-                            ? DistanceUnit.miles
-                            : DistanceUnit.kilometers;
-                      },
-                    ),
-                  ],
-                ),
-              ),
               ElevatedButton(
                   child: const Text('Click to Start Running'),
                   onPressed: () {
@@ -117,9 +95,34 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const ProgressBar()),
+                      MaterialPageRoute(builder: (_) => const paceShow()),
                     );
                   }),
+              const SizedBox(height: 100),
+              //#km2miles
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(
+                      child: Text('km/mi'),
+                    ),
+                    Switch(
+                      value:
+                          ref.watch(distanceUnitProvider) == DistanceUnit.miles,
+                      onChanged: (value) {
+                        ref.read(distanceUnitProvider.notifier).state = value
+                            ? DistanceUnit.miles
+                            : DistanceUnit.kilometers;
+                      },
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

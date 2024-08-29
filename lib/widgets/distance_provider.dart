@@ -5,6 +5,7 @@ import 'distance_unit_conversion.dart';
 
 final distanceProvider = StateProvider<double>((ref) => 0.0);
 
+//for KM or Miles
 final formattedDistanceProvider = Provider<String>((ref) {
   final distanceKm = ref.watch(distanceProvider);
   final unit = ref.watch(distanceUnitProvider);
