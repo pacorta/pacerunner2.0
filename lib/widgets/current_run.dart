@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'speed_provider.dart';
 import 'distance_provider.dart';
 import 'average_pace_provider.dart';
+import 'current_pace_in_seconds_provider.dart';
 import 'current_pace_provider.dart';
 import 'pace_bar.dart';
 

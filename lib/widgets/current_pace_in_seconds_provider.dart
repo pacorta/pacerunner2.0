@@ -10,14 +10,15 @@ import 'distance_unit_conversion.dart';
 
 double startWindowElapsedSeconds = 0.0;
 double startWindowDistanceKm = 0.0;
+double lastValidPaceInSeconds = 0.0; // Keep track of the last valid pace
 
-final currentPaceProvider = Provider<String>((ref) {
+final currentPaceInSecondsProvider = Provider<double>((ref) {
   final currentElapsedSeconds = ref.watch(elapsedTimeProviderInSeconds);
   final currentDistanceKm = ref.watch(distanceProvider);
   final unit = ref.watch(distanceUnitProvider);
 
   // Check if the 3-second window has passed
-  if (currentElapsedSeconds - startWindowElapsedSeconds >= 0.5) {
+  if (currentElapsedSeconds - startWindowElapsedSeconds >= 3.0) {
     // Calculate the time and distance differences over the 3-second interval
     final timeDifference = currentElapsedSeconds - startWindowElapsedSeconds;
     final distanceDifference = currentDistanceKm - startWindowDistanceKm;
@@ -30,10 +31,10 @@ final currentPaceProvider = Provider<String>((ref) {
     startWindowDistanceKm = currentDistanceKm;
 
     if (distanceDifference <= 0 || timeDifference <= 0) {
-      return "---";
+      return lastValidPaceInSeconds; // Return the last valid pace
     }
 
-    // Calculate the pace
+    // Calculate pace in seconds per km or mile
     double paceInSeconds;
     if (unit == DistanceUnit.kilometers) {
       paceInSeconds = timeDifference / distanceDifference;
@@ -42,18 +43,12 @@ final currentPaceProvider = Provider<String>((ref) {
       paceInSeconds = timeDifference / distanceMiles;
     }
 
-    // Convert to minutes and format
-    final minutes = (paceInSeconds / 60).floor();
-    final seconds = (paceInSeconds % 60).round();
+    // Store the last valid pace
+    lastValidPaceInSeconds = paceInSeconds;
 
-    final currentPaceString =
-        '$minutes:${seconds.toString().padLeft(2, '0')}/${unit == DistanceUnit.kilometers ? 'km' : 'mi'}';
-
-    print('Current Pace String: $currentPaceString');
-
-    return currentPaceString;
+    return paceInSeconds;
   }
 
-  // If 3 seconds haven't passed, maintain the previous pace display
-  return "---";
+  // If 3 seconds haven't passed, return the last valid pace
+  return lastValidPaceInSeconds;
 });
