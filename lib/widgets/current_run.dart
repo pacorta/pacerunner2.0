@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'speed_provider.dart';
 import 'distance_provider.dart';
 import 'average_pace_provider.dart';
-import 'current_pace_in_seconds_provider.dart';
+//import 'current_pace_in_seconds_provider.dart';
 import 'current_pace_provider.dart';
 import 'pace_bar.dart';
 
@@ -133,6 +133,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
+                /*
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -146,22 +147,9 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                         fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'DISTANCE: $formattedDistance',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                */
                 const PaceBar(),
+                /*
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -175,6 +163,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                         fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
+                */
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -184,6 +173,19 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                   ),
                   child: Text(
                     'CURRENT PACE: $currentPace',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'DISTANCE: $formattedDistance',
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.bold),
                   ),
