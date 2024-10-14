@@ -1,5 +1,7 @@
+source 'https://github.com/CocoaPods/Specs.git'
+source 'https://github.com/googlemaps/google-maps-ios-utils.git'
 # Uncomment this line to define a global platform for your project
-# platform :ios, '12.0'
+platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -30,6 +32,18 @@ flutter_ios_podfile_setup
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
+
+
+#For apps that use CocoaPods, the Firebase pod is deprecated in v9.0 and higher.
+#Instead, you need to reference product pods directly in your Podfile
+#(for example, FirebaseCore instead of Firebase/Core and FirebaseFirestore instead of Firebase/Firestore).
+
+  pod 'FirebaseCore'
+  pod 'FirebaseAuth'
+  pod 'FirebaseFirestore'
+
+  pod 'GoogleMaps', '~> 9.0'
+  pod 'Google-Maps-iOS-Utils', '~> 6.0'
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do

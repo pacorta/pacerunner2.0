@@ -1,19 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:untitled/widgets/progress_bar.dart';
 import 'package:untitled/widgets/unit_preference_provider.dart';
-
 import 'widgets/map.dart';
 import 'widgets/current_run.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'widgets/tracking_provider.dart';
 import 'widgets/distance_provider.dart';
-
 import 'widgets/pace_bar.dart';
 
-void gmaps() => runApp(const Map());
+import 'firebase/firebaseWidgets/login_page.dart';
+import 'firebase/firebaseWidgets/running_stats.dart';
+import 'firebase/firebase_options.dart';
 
-void main() {
+//import 'firebase/back-end-main.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+          apiKey: "AIzaSyBv36Hi6ONcFmKpAGJDYYQpLk9nlD-Eus8",
+          authDomain:
+              "pacerunner-backend.firebaseapp.com", //YOUR_PROJECT_ID.firebaseapp.com
+          projectId: "pacerunner-backend",
+          storageBucket: "pacerunner-backend.appspot.com",
+          messagingSenderId: "1051561767754", //GCM_SENDER_ID
+          appId: "1:1051561767754:ios:62d6231d0315b5514307b3"),
+    );
+  }
   runApp(
     //(1)ProviderScope wraps the entire app, providing a container for all providers defined in the app.
     //It's crucial because it initializes the provider system and allows the state managed by providers to be shared across the widget tree.
@@ -36,6 +53,29 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const MyHomePage(title: 'The Pacerunner Home Screen'),
+    );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      //This stream listens for changes in the user's authentication state,
+      //allowing the app to switch between the login page and the main running stats page.
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasData) {
+          return RunningStatsPage();
+        } else {
+          return LoginPage();
+        }
+      },
     );
   }
 }
@@ -91,11 +131,11 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
                     );
                   }),
               ElevatedButton(
-                  child: const Text('Progress Bar Demo'),
+                  child: const Text('Back End Demo'),
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const paceShow()),
+                      MaterialPageRoute(builder: (_) => const AuthWrapper()),
                     );
                   }),
               const SizedBox(height: 100),
@@ -126,110 +166,6 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class ThirdScreen extends StatelessWidget {
-  const ThirdScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Current Run'),
-        backgroundColor: Colors.teal,
-      ),
-      body: Center(
-        child: Column(
-          children: [
-            const SizedBox(
-              height: 300,
-              child: Map(),
-            ),
-            OverflowBar(
-              alignment: MainAxisAlignment.start,
-              children: <Widget>[
-                TextButton(
-                    child: const Text('Full Screen Map'),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const Map()),
-                      );
-                    }),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AboutScreen(tag: 'visca')), // HERO
-                    );
-                  },
-                  child: Hero(
-                    // HERO
-                    tag: 'visca', // Use the tag // HERO
-                    child: Image.asset(
-                      'images/FCB.png',
-                      width: 50, // Set the desired width
-                      height: 50, // Set the desired height
-                    ),
-                  ),
-                ),
-                const MyButton(),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class AboutScreen extends StatelessWidget {
-  final String tag; //HERO
-  const AboutScreen({required this.tag, super.key}); //HERO
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.brown,
-        title: const Text('About Page'),
-      ),
-      body: Center(
-        child: Hero(
-          tag: tag, //HERO
-          child: Image.asset('images/FCB.png'),
-        ),
-      ),
-    );
-  }
-}
-
-class MyButton extends StatelessWidget {
-  const MyButton({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    // The GestureDetector wraps the button.
-    return GestureDetector(
-      // When the child is tapped, show a snackbar.
-      onTap: () {
-        const snackBar = SnackBar(content: Text('Cosquillas'));
-
-        ScaffoldMessenger.of(context).showSnackBar(snackBar);
-      },
-      // The custom button
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.lightBlue,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Text('My Button'),
       ),
     );
   }
