@@ -81,3 +81,18 @@ For help getting started with Flutter development, view the [online documentatio
 	•	Using the normalized value for rendering ensures a visually intuitive PaceBar, regardless of the specific pace range.
 	•	Overall, this update works well. It was tested in real life and responded accurately to walking, jogging, and sprinting.
 	•	Currently, the app sets the default optimal pace at 8 minutes per mile, but this can be customized. Eventually, the user will be prompted for their running goal, but this feature will be added after the data section is complete.
+
+
+
+10/14/2024
+
+	•	Merged the database phase of the application with the front end succesfully. The app now has a login screen and a screen to review the user's past runs data.
+	•	Every time the user stops a new run, the data will succesfully be written into their records
+
+	•	Bugs I've detected:
+			•	When the user press ‘stop running’, the app keeps tracking the run even after sending the correct summary data to the running stats screen.To fix this I think I either need to:
+				-Find the call that told the map to stop tracking (pretty sure it was called stopTracking) and find out how to call it with the button from currentRun
+				-or double the power of whatever is making it stop eventually, because it does *eventually stop*. By this I mean attempting to activate that stop sooner.
+			•	After having to upgrade to ios 15 becuse of dependency issues, I got the following messages in 'LocationPlugin' in the ios folder:
+				- [CLLocationManager authorizationStatus] 		error---->>	'authorizationStatus' is deprecated: first deprecated in iOS 14.0
+				- [CLLocationManager locationServicesEnabled]	error---->> 'This method can cause UI unresponsiveness if invoked on the main thread. Instead, consider waiting for the `-locationManagerDidChangeAuthorization:` callback and checking `authorizationStatus` first.'

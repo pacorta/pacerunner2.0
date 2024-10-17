@@ -2,41 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../home_screen.dart';
+
 class RunningStatsPage extends StatefulWidget {
-  const RunningStatsPage({super.key});
+  final Map<String, dynamic>? newRunData;
+
+  const RunningStatsPage({super.key, this.newRunData});
 
   @override
   _RunningStatsPageState createState() => _RunningStatsPageState();
 }
 
 class _RunningStatsPageState extends State<RunningStatsPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _distanceController = TextEditingController();
-  final _timeController = TextEditingController();
-
-  void _addRun() {
-    if (_formKey.currentState!.validate()) {
-      final userId = FirebaseAuth.instance.currentUser!.uid;
-      final distance = double.parse(_distanceController.text);
-      final time = int.parse(_timeController.text);
-      final speed = (distance / time * 60).round(); // m/min
-
-      final runData = {
-        'distance': distance,
-        'time': time,
-        'speed': speed,
-        'timestamp': FieldValue.serverTimestamp(),
-      };
-
-      FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('runs')
-          .add(runData);
-
-      _distanceController.clear();
-      _timeController.clear();
+  @override
+  void initState() {
+    super.initState();
+    if (widget.newRunData != null) {
+      _saveRunToFirebase(widget.newRunData!);
     }
+  }
+
+  void _saveRunToFirebase(Map<String, dynamic> runData) {
+    final userId = FirebaseAuth.instance.currentUser!.uid;
+    runData['timestamp'] = FieldValue.serverTimestamp();
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('runs')
+        .add(runData)
+        .then((_) => print('Run saved successfully'))
+        .catchError((error) => print('Failed to save run: $error'));
   }
 
   void _deleteRun(String docId) {
@@ -46,178 +41,127 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
         .doc(userId)
         .collection('runs')
         .doc(docId)
-        .delete();
-  }
-
-  void _editRun(String docId, Map<String, dynamic> currentData) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final distanceController =
-            TextEditingController(text: currentData['distance'].toString());
-        final timeController =
-            TextEditingController(text: currentData['time'].toString());
-
-        return AlertDialog(
-          title: Text('Edit Run'),
-          content: Form(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: distanceController,
-                  decoration: InputDecoration(labelText: 'Distance (km)'),
-                  keyboardType: TextInputType.number,
-                ),
-                TextFormField(
-                  controller: timeController,
-                  decoration: InputDecoration(labelText: 'Time (minutes)'),
-                  keyboardType: TextInputType.number,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            ElevatedButton(
-              child: Text('Save'),
-              onPressed: () {
-                final userId = FirebaseAuth.instance.currentUser!.uid;
-                final distance = double.parse(distanceController.text);
-                final time = int.parse(timeController.text);
-                final speed = (distance / time * 60).round(); // m/min
-
-                FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(userId)
-                    .collection('runs')
-                    .doc(docId)
-                    .update({
-                  'distance': distance,
-                  'time': time,
-                  'speed': speed,
-                });
-
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
+        .delete()
+        .then((_) => print('Run deleted successfully'))
+        .catchError((error) => print('Failed to delete run: $error'));
   }
 
   @override
   Widget build(BuildContext context) {
-    final userId = FirebaseAuth.instance.currentUser!.uid;
     return Scaffold(
       appBar: AppBar(
-        title: Text('Running Stats'),
+        title: const Text('Running Stats'),
         actions: [
           IconButton(
-            icon: Icon(Icons.logout),
-            onPressed: () => FirebaseAuth.instance.signOut(),
+            icon: const Icon(Icons.home),
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HomeScreen()),
+              );
+            },
           ),
         ],
       ),
-      body: Column(
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('images/background.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Column(
+          children: [
+            if (widget.newRunData != null)
+              _displayCurrentRunStats(widget.newRunData!),
+            Expanded(
+              child: _buildRunList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _displayCurrentRunStats(Map<String, dynamic> runData) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _distanceController,
-                      decoration: InputDecoration(labelText: 'Distance (km)'),
-                      keyboardType: TextInputType.number,
-                      validator: (value) =>
-                          value!.isEmpty ? 'Enter distance' : null,
-                    ),
-                  ),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _timeController,
-                      decoration: InputDecoration(labelText: 'Time (minutes)'),
-                      keyboardType: TextInputType.number,
-                      validator: (value) =>
-                          value!.isEmpty ? 'Enter time' : null,
-                    ),
-                  ),
-                  SizedBox(width: 16),
-                  ElevatedButton(
-                    child: Text('Add Run'),
-                    onPressed: _addRun,
-                  ),
-                ],
-              ),
-            ),
+          const Text(
+            'Current Run Summary:',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(userId)
-                  .collection('runs')
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return CircularProgressIndicator();
-                final runs = snapshot.data!.docs;
-                return ListView.builder(
-                  itemCount: runs.length,
-                  itemBuilder: (context, index) {
-                    final run = runs[index].data() as Map<String, dynamic>;
-                    final runMessage = _getRunMessage(runs, index);
-                    return ListTile(
-                      title: Text(
-                          'Distance: ${run['distance']} km, Time: ${run['time']} min'),
-                      subtitle:
-                          Text('Speed: ${run['speed']} m/min\n$runMessage'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.edit),
-                            onPressed: () => _editRun(runs[index].id, run),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.delete),
-                            onPressed: () => _deleteRun(runs[index].id),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
+          const SizedBox(height: 8),
+          Text('Distance: ${runData['distance'].toStringAsFixed(2)} km'),
+          Text('Time: ${runData['time']}'),
+          Text('Average Pace: ${runData['averagePace']} min/km'),
         ],
       ),
     );
   }
 
-  String _getRunMessage(List<QueryDocumentSnapshot> runs, int index) {
-    if (runs.length == 1) return "Great First Run!";
-
-    final currentRun = runs[index].data() as Map<String, dynamic>;
-    final currentSpeed = currentRun['speed'] as int;
-
-    final fasterRuns = runs.where((run) {
-      final runData = run.data() as Map<String, dynamic>;
-      return (runData['speed'] as int) > currentSpeed;
-    }).length;
-
-    if (fasterRuns == 0) return "This was your fastest run ever!";
-    if (fasterRuns == 1) return "2nd fastest run!";
-    if (fasterRuns == 2) return "3rd fastest run!";
-    return "${fasterRuns + 1}th fastest run";
+  Widget _buildRunList() {
+    final userId = FirebaseAuth.instance.currentUser!.uid;
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('runs')
+          .orderBy('timestamp', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData)
+          return const Center(child: CircularProgressIndicator());
+        final runs = snapshot.data!.docs;
+        return ListView.builder(
+          itemCount: runs.length,
+          itemBuilder: (context, index) {
+            final run = runs[index].data() as Map<String, dynamic>;
+            final docId = runs[index].id;
+            return Container(
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 5,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ListTile(
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                title: Text(
+                  'Distance: ${run['distance'].toStringAsFixed(2)} km, Time: ${run['time']} min',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text('Average Pace: ${run['averagePace']} min/km'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => _deleteRun(docId),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }

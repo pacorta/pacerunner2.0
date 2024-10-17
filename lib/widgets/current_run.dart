@@ -10,6 +10,11 @@ import 'average_pace_provider.dart';
 import 'current_pace_provider.dart';
 import 'pace_bar.dart';
 
+import '../firebase/firebaseWidgets/running_stats.dart';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class CurrentRun extends ConsumerStatefulWidget {
   const CurrentRun({super.key});
 
@@ -52,32 +57,49 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
   }
 
   void _endRun() {
-    //_distanceCalculator.stop();
     _stopwatch.stop();
     _timer?.cancel();
-    // Add code to save the run data, show a summary, etc.
+
+    // Extract the numeric part from the formatted distance
+    String distanceString = ref.read(formattedDistanceProvider).split(' ')[0];
+    double distance = double.tryParse(distanceString) ?? 0.0;
+
+    // Prepare the run data map
+    final runData = {
+      'distance': distance,
+      'time': ref.read(elapsedTimeProvider),
+      'averagePace': ref.read(averagePaceProvider),
+      'timestamp': FieldValue.serverTimestamp(), // For accurate sorting
+    };
+
+    // Show the alert dialog with summary stats
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Run Completed'),
         content: Text(
-            'Run Time: ${ref.read(elapsedTimeProvider)} \nTraveled distance: ${ref.read(formattedDistanceProvider)}\nAverage Pace: ${ref.read(averagePaceProvider)} '),
+          'Run Time: ${ref.read(elapsedTimeProvider)}\n'
+          'Traveled Distance: ${ref.read(formattedDistanceProvider)}\n'
+          'Average Pace: ${ref.read(averagePaceProvider)}',
+        ),
         actions: [
           TextButton(
             child: const Text('OK'),
-            onPressed: () {
-              //reset time and distance to 0.
-
-              Navigator.of(context).pop();
-              Navigator.of(context).pop(); // Return to home screen
-              /*
+            onPressed: () async {
+              Navigator.of(context).pop(); // Close the dialog
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (_) =>
-                        const Results()), //Results is not accessible yet :(
+                  builder: (_) => const RunningStatsPage(),
+                ),
               );
-              */
+              // Save the run data to Firebase only when the user confirms the run
+              final userId = FirebaseAuth.instance.currentUser!.uid;
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(userId)
+                  .collection('runs')
+                  .add(runData);
             },
           ),
         ],
@@ -94,10 +116,9 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     final currentPace = ref.watch(currentPaceProvider);
 
     return Scaffold(
-      backgroundColor: Colors.teal,
       appBar: AppBar(
         title: const Text('Current Run'),
-        backgroundColor: const Color.fromARGB(255, 157, 210, 223),
+        backgroundColor: const Color.fromARGB(255, 255, 255, 255),
         automaticallyImplyLeading: false,
       ),
       body: Column(
@@ -130,6 +151,13 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
           ),
           const SizedBox(height: 4),
           Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage(
+                    'images/background.png'), // Add your background image
+                fit: BoxFit.cover,
+              ),
+            ),
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
