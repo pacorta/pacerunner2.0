@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:untitled/widgets/unit_preference_provider.dart';
+import 'package:untitled/widgets/distance_unit_provider.dart';
 import 'widgets/current_run.dart';
 import 'widgets/tracking_provider.dart';
 import 'widgets/distance_provider.dart';
@@ -10,6 +10,8 @@ import 'auth_wraper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'firebase/firebaseWidgets/running_stats.dart';
+
+import '/widgets/pace_selection.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -68,7 +70,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     }
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const CurrentRun()),
+                      MaterialPageRoute(
+                          builder: (context) => const CurrentRun()),
+                    );
+                  }),
+              ElevatedButton(
+                  child: const Text('Pace Selection'),
+                  onPressed: () {
+                    final trackingNotifier = ref.read(trackingProvider
+                        .notifier); //Use ref.read(provider) when you want to read a value without rebuilding the widget.
+                    if (isTracking) {
+                      trackingNotifier.state = false;
+                      print(
+                          'Traveled distance: ${ref.read(distanceProvider).toStringAsFixed(2)} km');
+                    } else {
+                      trackingNotifier.state = true;
+                      ref.read(distanceProvider.notifier).state =
+                          0.0; //Use ref.read(provider) when you want to read a value without rebuilding the widget.
+                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const PaceSelectionWidget()),
                     );
                   }),
               ElevatedButton(

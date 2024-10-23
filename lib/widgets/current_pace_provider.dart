@@ -1,11 +1,16 @@
+//This metric is only used to display to the user if needed.
+//  To find the metric that makes the paceBar move, go to widgets/current_pace_in_seconds_provider.dart
+
 //Current Pace: Calculates the time it takes to cover a specific distance.
 //              Useful for runners to monitor if they are keeping a consistent pace.
 //Current Pace = Time / Distance
 
+//Here we are calculating the "average pace" every 4 seconds and returning a string with this information.
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'elapsed_time_provider.dart';
 import 'distance_provider.dart';
-import 'unit_preference_provider.dart';
+import 'distance_unit_provider.dart';
 import 'distance_unit_conversion.dart';
 
 double startWindowElapsedSeconds = 0.0;

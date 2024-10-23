@@ -108,7 +108,7 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
           const SizedBox(height: 8),
           Text('Distance: ${runData['distance'].toStringAsFixed(2)} km'),
           Text('Time: ${runData['time']}'),
-          Text('Average Pace: ${runData['averagePace']} min/km'),
+          Text('Average Pace: ${runData['averagePace']}'),
         ],
       ),
     );
@@ -149,10 +149,10 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 title: Text(
-                  'Distance: ${run['distance'].toStringAsFixed(2)} km, Time: ${run['time']} min',
+                  'Distance: ${run['distance'].toStringAsFixed(2)} km \nTime: ${run['time']} min',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                subtitle: Text('Average Pace: ${run['averagePace']} min/km'),
+                subtitle: Text('Average Pace: ${run['averagePace']}'),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
                   onPressed: () => _deleteRun(docId),

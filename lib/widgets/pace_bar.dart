@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'current_pace_in_seconds_provider.dart';
+import 'distance_unit_provider.dart';
 
 class PaceBar extends ConsumerStatefulWidget {
   const PaceBar({
@@ -12,12 +13,14 @@ class PaceBar extends ConsumerStatefulWidget {
     this.targetZoneStart = 0.33,
     this.targetZoneEnd = 0.67,
   });
+
   final double width;
   final double height;
   final double minPaceSecondsPerMile;
   final double maxPaceSecondsPerMile;
   final double targetZoneStart;
   final double targetZoneEnd;
+
   @override
   ConsumerState<PaceBar> createState() => _PaceBarState();
 }
@@ -27,6 +30,7 @@ class _PaceBarState extends ConsumerState<PaceBar>
   double lastValidIconPosition = 0.5; // Default to center
   late AnimationController _animationController;
   late Animation<double> _iconPositionAnimation;
+
   @override
   void initState() {
     super.initState();
@@ -47,11 +51,23 @@ class _PaceBarState extends ConsumerState<PaceBar>
 
   @override
   Widget build(BuildContext context) {
+    // Watch both the pace provider and the distance unit provider.
     final paceInSecondsPerMile = ref.watch(currentPaceInSecondsProvider);
+    final distanceUnit = ref.watch(distanceUnitProvider);
+
+    // Adjust the pace value if the unit is kilometers.
+    double adjustedPace;
+    if (distanceUnit == DistanceUnit.kilometers) {
+      adjustedPace = _convertPaceToKilometers(paceInSecondsPerMile);
+    } else {
+      adjustedPace = paceInSecondsPerMile;
+    }
+
+    // Calculate normalized pace.
     double normalizedPace;
-    if (paceInSecondsPerMile > 0) {
+    if (adjustedPace > 0) {
       normalizedPace = 1 -
-          (paceInSecondsPerMile - widget.minPaceSecondsPerMile) /
+          (adjustedPace - widget.minPaceSecondsPerMile) /
               (widget.maxPaceSecondsPerMile - widget.minPaceSecondsPerMile);
       normalizedPace = normalizedPace.clamp(0.0, 1.0);
       lastValidIconPosition = normalizedPace;
@@ -59,8 +75,9 @@ class _PaceBarState extends ConsumerState<PaceBar>
       _iconPositionAnimation = Tween<double>(
         begin: _iconPositionAnimation.value,
         end: normalizedPace * (widget.width - 50.0),
-      ).animate(CurvedAnimation(
-          parent: _animationController, curve: Curves.easeInOut));
+      ).animate(
+        CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+      );
       _animationController.forward(from: 0);
     } else {
       normalizedPace = lastValidIconPosition;
@@ -124,5 +141,11 @@ class _PaceBarState extends ConsumerState<PaceBar>
         ],
       ),
     );
+  }
+
+  // Helper method to convert pace from seconds per mile to seconds per kilometer.
+  double _convertPaceToKilometers(double paceInSecondsPerMile) {
+    const mileToKilometer = 1.60934;
+    return paceInSecondsPerMile / mileToKilometer;
   }
 }

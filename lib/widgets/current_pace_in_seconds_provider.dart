@@ -5,7 +5,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'elapsed_time_provider.dart';
 import 'distance_provider.dart';
-import 'unit_preference_provider.dart';
+import 'distance_unit_provider.dart';
 import 'distance_unit_conversion.dart';
 
 double startWindowElapsedSeconds = 0.0;
