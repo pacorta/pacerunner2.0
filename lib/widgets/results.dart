@@ -3,7 +3,6 @@ import 'speed_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 //Checking how to pass this value here, just testing my knowledge
-//Chatgpt: This is currently not accessible the way I want it to from the "stop" button in the current_run widget. I added a comment there too so you see what I'm talking about.
 
 class Results extends ConsumerStatefulWidget {
   const Results({super.key});

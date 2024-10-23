@@ -3,7 +3,7 @@ import 'package:untitled/widgets/elapsed_time_provider.dart';
 import 'dart:async';
 import 'map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'speed_provider.dart';
+//import 'speed_provider.dart';
 import 'distance_provider.dart';
 import 'average_pace_provider.dart';
 //import 'current_pace_in_seconds_provider.dart';
@@ -109,10 +109,10 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
 
   @override
   Widget build(BuildContext context) {
-    final speed = ref.watch(formattedSpeedProvider);
+    //final speed = ref.watch(formattedSpeedProvider);
     final formattedDistance = ref.watch(formattedDistanceProvider); //#km2miles
     final elapsedTime = ref.watch(elapsedTimeProvider);
-    final avgPace = ref.watch(averagePaceProvider);
+    //final avgPace = ref.watch(averagePaceProvider);
     final currentPace = ref.watch(currentPaceProvider);
 
     return Scaffold(

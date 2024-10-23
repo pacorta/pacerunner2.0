@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:untitled/auth_wraper.dart';
 
-import 'home_screen.dart';
+//import 'home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
