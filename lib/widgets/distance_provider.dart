@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'unit_preference_provider.dart';
+import 'distance_unit_provider.dart';
 import 'distance_unit_conversion.dart';
 
 final distanceProvider = StateProvider<double>((ref) => 0.0);

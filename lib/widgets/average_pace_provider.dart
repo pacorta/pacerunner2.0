@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'elapsed_time_provider.dart'; //1 √
 import 'distance_provider.dart'; //2 √
-import 'unit_preference_provider.dart'; //3 √
+import 'distance_unit_provider.dart'; //3 √
 import 'distance_unit_conversion.dart'; //4 √
 
 final averagePaceProvider = Provider<String>((ref) {
