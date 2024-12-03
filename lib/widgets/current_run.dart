@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:untitled/widgets/elapsed_time_provider.dart';
 import 'dart:async';
 import 'map.dart';
+import 'tracking_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-//import 'speed_provider.dart';
+import 'speed_provider.dart';
 import 'distance_provider.dart';
 import 'average_pace_provider.dart';
 //import 'current_pace_in_seconds_provider.dart';
@@ -14,6 +15,10 @@ import '../firebase/firebaseWidgets/running_stats.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'distance_unit_as_string_provider.dart';
+
+//import 'tracking_provider.dart';
 
 class CurrentRun extends ConsumerStatefulWidget {
   const CurrentRun({super.key});
@@ -36,6 +41,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
   @override
   void initState() {
     super.initState();
+
     _startTimer();
   }
 
@@ -63,43 +69,68 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     // Extract the numeric part from the formatted distance
     String distanceString = ref.read(formattedDistanceProvider).split(' ')[0];
     double distance = double.tryParse(distanceString) ?? 0.0;
+    String distanceUnitString = ref.read(formattedUnitString);
+    final finalTime = ref.read(elapsedTimeProvider);
+    final finalPace = ref.read(averagePaceProvider);
 
     // Prepare the run data map
     final runData = {
       'distance': distance,
-      'time': ref.read(elapsedTimeProvider),
-      'averagePace': ref.read(averagePaceProvider),
+      'distanceUnitString':
+          distanceUnitString, //tested and works [nov 20, 2024]
+      'time': finalTime,
+      'averagePace': finalPace,
       'timestamp': FieldValue.serverTimestamp(), // For accurate sorting
     };
 
     // Show the alert dialog with summary stats
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('Run Completed'),
         content: Text(
-          'Run Time: ${ref.read(elapsedTimeProvider)}\n'
-          'Traveled Distance: ${ref.read(formattedDistanceProvider)}\n'
-          'Average Pace: ${ref.read(averagePaceProvider)}',
+          'Run Time: $finalTime\n'
+          'Traveled Distance: $distance $distanceUnitString\n'
+          'Average Pace: $finalPace',
         ),
         actions: [
           TextButton(
             child: const Text('OK'),
             onPressed: () async {
-              Navigator.of(context).pop(); // Close the dialog
+              //(1) Reset Providers
+              ref.read(trackingProvider.notifier).state = false;
+              ref.read(distanceProvider.notifier).state = 0.0;
+              ref.read(speedProvider.notifier).state = 0.0;
+              ref.read(elapsedTimeProvider.notifier).state = '00:00:00';
+              //consider adding recent pace provider resetter
+
+              //(2) Pop Dialog and Navigate to Running Stats Page
+              Navigator.of(context).pop();
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => const RunningStatsPage(),
                 ),
               );
-              // Save the run data to Firebase only when the user confirms the run
-              final userId = FirebaseAuth.instance.currentUser!.uid;
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(userId)
-                  .collection('runs')
-                  .add(runData);
+
+              //(3) Save the run data to Firebase only when the user confirms the run
+              final user = FirebaseAuth.instance.currentUser;
+              if (user != null) {
+                FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user.uid)
+                    .collection('runs')
+                    .add(runData)
+                    .then((_) {
+                  // We could handle successful save here
+                  debugPrint('Run saved successfully');
+                }).catchError((error) {
+                  // Handle any Firebase errors here
+                  debugPrint('Error saving run: $error');
+                  // Maybe show a snackbar or other error notification
+                });
+              }
             },
           ),
         ],
@@ -115,53 +146,55 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     //final avgPace = ref.watch(averagePaceProvider);
     final currentPace = ref.watch(currentPaceProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Current Run'),
-        backgroundColor: const Color.fromARGB(255, 255, 255, 255),
-        automaticallyImplyLeading: false,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Stack(
-              children: [
-                const SizedBox(
-                  height: 500,
-                  child: Map(),
-                ),
-                Positioned(
-                  top: 10,
-                  left: 10,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      elapsedTime,
-                      style: const TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.bold),
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Current Run'),
+          backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+          automaticallyImplyLeading: false,
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: Stack(
+                children: [
+                  const SizedBox(
+                    height: 500,
+                    child: Map(),
+                  ),
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        elapsedTime,
+                        style: const TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage(
-                    'images/background.png'), // Add your background image
-                fit: BoxFit.cover,
+                ],
               ),
             ),
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                /*
+            const SizedBox(height: 4),
+            Container(
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage(
+                      'images/background.png'), // Add your background image
+                  fit: BoxFit.cover,
+                ),
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  /*
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -176,8 +209,8 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                   ),
                 ),
                 */
-                const PaceBar(),
-                /*
+                  const PaceBar(),
+                  /*
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -192,47 +225,48 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                   ),
                 ),
                 */
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'CURRENT PACE: $currentPace',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'DISTANCE: $formattedDistance',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _endRun,
-                  style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    minimumSize: const Size(double.infinity, 50),
+                    child: Text(
+                      'CURRENT PACE: $currentPace',
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
                   ),
-                  child: const Text('STOP', style: TextStyle(fontSize: 18)),
-                ),
-              ],
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'DISTANCE: $formattedDistance',
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _endRun,
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    child: const Text('STOP', style: TextStyle(fontSize: 18)),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

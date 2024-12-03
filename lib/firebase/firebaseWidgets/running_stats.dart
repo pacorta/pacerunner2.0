@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../home_screen.dart';
+//import '../../widgets/distance_unit_as_string_provider.dart';
 
 class RunningStatsPage extends StatefulWidget {
   final Map<String, dynamic>? newRunData;
@@ -48,36 +49,41 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Running Stats'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.home),
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const HomeScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('images/background.png'),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: Column(
-          children: [
-            if (widget.newRunData != null)
-              _displayCurrentRunStats(widget.newRunData!),
-            Expanded(
-              child: _buildRunList(),
+    //december 3, 2024: added this popscope to prevent the user from going back to the current run screen
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: const Text('Running Stats'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.home),
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                );
+              },
             ),
           ],
+        ),
+        body: Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('images/background.png'),
+              fit: BoxFit.cover,
+            ),
+          ),
+          child: Column(
+            children: [
+              if (widget.newRunData != null)
+                _displayCurrentRunStats(widget.newRunData!),
+              Expanded(
+                child: _buildRunList(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -85,16 +91,16 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
 
   Widget _displayCurrentRunStats(Map<String, dynamic> runData) {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.all(16), //spacing around container
+      padding: const EdgeInsets.all(16), //padding inside container
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(15),
+        color: Colors.white.withOpacity(0.8), //semi-transparent bg
+        borderRadius: BorderRadius.circular(15), //rounder corners
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: Offset(0, 5),
+            color: Colors.black.withOpacity(0.1), //subtle shadow
+            blurRadius: 10, //blur effect for the shadow
+            offset: const Offset(0, 5), //shadow offset
           ),
         ],
       ),
@@ -106,7 +112,8 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          Text('Distance: ${runData['distance'].toStringAsFixed(2)} km'),
+          Text(
+              'Distance: ${runData['distance'].toStringAsFixed(2)} ${runData['distanceUnitString']}'), //tested and works [nov 20, 2024]
           Text('Time: ${runData['time']}'),
           Text('Average Pace: ${runData['averagePace']}'),
         ],
@@ -124,8 +131,9 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
           .orderBy('timestamp', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData)
+        if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
+        }
         final runs = snapshot.data!.docs;
         return ListView.builder(
           itemCount: runs.length,
@@ -141,7 +149,7 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
                     blurRadius: 5,
-                    offset: Offset(0, 2),
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
@@ -149,10 +157,11 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 title: Text(
-                  'Distance: ${run['distance'].toStringAsFixed(2)} km \nTime: ${run['time']} min',
+                  'Distance: ${run['distance'].toStringAsFixed(2)} ${run['distanceUnitString']}', //tested and works [nov 20, 2024]
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                subtitle: Text('Average Pace: ${run['averagePace']}'),
+                subtitle: Text(
+                    'Time: ${run['time']} \nAverage Pace: ${run['averagePace']}'),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
                   onPressed: () => _deleteRun(docId),
