@@ -49,6 +49,13 @@ class _MapState extends ConsumerState<Map> {
     //_startTimer();
   }
 
+//December 3, 2024: all cleanup operations in 1 function
+  void _cleanupLocationTracking() {
+    locationSubscription?.cancel(); // Stops receiving location updates
+    _locations.clear(); // Clears stored location history
+    polylineCoordinates.clear(); // Clears the route line on the map
+  }
+
   @override
   void dispose() {
     locationSubscription?.cancel(); // Cancel the subscription
@@ -116,116 +123,57 @@ class _MapState extends ConsumerState<Map> {
     locationSubscription =
         location.onLocationChanged.listen((LocationData currentLocation) {
       //print("Location updated: ${currentLocation.latitude}, ${currentLocation.longitude}, Speed: ${currentLocation.speed} m/s"); // Log entry
-      if (mounted) {
-        setState(() {
-          _currentPosition =
-              LatLng(currentLocation.latitude!, currentLocation.longitude!);
-          _currentSpeed = currentLocation.speed!;
-          double speedInMph =
-              getSpeedInMph(); //notifying convertion of mps to mph of the _currentSpeed
-          ref.read(speedProvider.notifier).state =
-              speedInMph; // notifier for riverpod
-          //Distance notifiers
-          if (ref.read(trackingProvider)) {
-            if (_locations.isNotEmpty) {
-              double additionalDistance = _calculateDistance(
-                _locations.last.latitude!,
-                _locations.last.longitude!,
-                currentLocation.latitude!,
-                currentLocation.longitude!,
-              );
-              ref.read(distanceProvider.notifier).state += additionalDistance;
-            }
-            _locations.add(currentLocation);
-          }
 
-          //_locations.add(currentLocation);
-          //ref.read(distanceProvider.notifier).state = _totalDistance;
-          //polylines
-          LatLng newPoint =
-              LatLng(currentLocation.latitude!, currentLocation.longitude!);
-          _updatePolyline(newPoint);
-          location.changeSettings(accuracy: LocationAccuracy.high);
-          //checking if mapcontroller is initialized before use
-          if (mapController != null) {
-            mapController!.animateCamera(
-              CameraUpdate.newCameraPosition(
-                CameraPosition(target: _currentPosition, zoom: 20),
-              ),
-            );
-          }
-        });
+      //december 3, 2024: added this check to prevent memory leak
+      if (!mounted) return;
+
+      final isTracking = ref.read(trackingProvider);
+      if (!isTracking) {
+        _cleanupLocationTracking();
+        return;
       }
-    });
-  }
 
-//calculate distance START
-//First attempt is through a local button, I'm going to make it available everywhere by using consumerState
+      setState(() {
+        _currentPosition =
+            LatLng(currentLocation.latitude!, currentLocation.longitude!);
+        _currentSpeed = currentLocation.speed!;
+        double speedInMph =
+            getSpeedInMph(); //notifying convertion of mps to mph of the _currentSpeed
+        ref.read(speedProvider.notifier).state =
+            speedInMph; // notifier for riverpod
+        //Distance notifiers
+        if (ref.read(trackingProvider)) {
+          if (_locations.isNotEmpty) {
+            double additionalDistance = _calculateDistance(
+              _locations.last.latitude!,
+              _locations.last.longitude!,
+              currentLocation.latitude!,
+              currentLocation.longitude!,
+            );
+            ref.read(distanceProvider.notifier).state += additionalDistance;
+          }
+          _locations.add(currentLocation);
+        }
 
-//#distanceprovider
-/*
-  void _startTracking() {
-    setState(() {
-      //_isTracking = true;   //#istrackingchanges move to higher state
-      _locations = [];
-      _totalDistance = 0.0;
-    });
-
-    location.onLocationChanged.listen((LocationData currentLocation) {
-      if (ref.read(trackingProvider.notifier).state) {
-        // #istrackingchanges #doubtful
-        //if (_isTracking) {
-        if (_locations.isNotEmpty) {
-          _totalDistance += _calculateDistance(
-            _locations.last.latitude!,
-            _locations.last.longitude!,
-            currentLocation.latitude!,
-            currentLocation.longitude!,
+        //_locations.add(currentLocation);
+        //ref.read(distanceProvider.notifier).state = _totalDistance;
+        //polylines
+        LatLng newPoint =
+            LatLng(currentLocation.latitude!, currentLocation.longitude!);
+        _updatePolyline(newPoint);
+        location.changeSettings(accuracy: LocationAccuracy.high);
+        //checking if mapcontroller is initialized before use
+        if (mapController != null) {
+          mapController!.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(target: _currentPosition, zoom: 20),
+            ),
           );
         }
-        _locations.add(currentLocation);
-        ref.read(distanceProvider.notifier).state = _totalDistance;
-      }
-      if (mounted) {
-        setState(() {
-          _currentPosition =
-              LatLng(currentLocation.latitude!, currentLocation.longitude!);
-          _currentSpeed = currentLocation.speed!;
-          double speedInMph = getSpeedInMph();
-          ref.read(speedProvider.notifier).state =
-              speedInMph; //notifier for riverpod for speed_provider
-
-          LatLng newPoint =
-              LatLng(currentLocation.latitude!, currentLocation.longitude!);
-          _updatePolyline(newPoint);
-          location.changeSettings(accuracy: LocationAccuracy.high);
-
-          if (mapController != null) {
-            mapController!.animateCamera(
-              CameraUpdate.newCameraPosition(
-                CameraPosition(target: _currentPosition, zoom: 20),
-              ),
-            );
-          }
-        });
-      }
+      });
     });
   }
 
-  void _stopTracking() {
-    //#istrackingchanges remove setstate
-    /*
-    setState(() {
-      _isTracking = false;
-    });
-    */
-
-    locationSubscription?.cancel();
-
-    // At this point, _totalDistance holds the total distance traveled.
-    print('Total Distance Traveled: ${_totalDistance.toStringAsFixed(2)} km');
-  }
-*/
   double _calculateDistance(
       double lat1, double lon1, double lat2, double lon2) {
     var p = 0.017453292519943295; // PI / 180
@@ -239,6 +187,12 @@ class _MapState extends ConsumerState<Map> {
 //calculate distance END
   @override
   Widget build(BuildContext context) {
+    //december 3, 2024: added this listener to clean up the location tracking when the user is not tracking
+    ref.listen(trackingProvider, (previous, next) {
+      if (!next) {
+        _cleanupLocationTracking();
+      }
+    });
     return MaterialApp(
       home: Scaffold(
         body: _locationObtained
