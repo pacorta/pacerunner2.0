@@ -6,6 +6,8 @@ import 'current_pace_in_seconds_provider.dart';
 import 'distance_unit_provider.dart';
 import 'dart:math';
 
+import 'package:flutter/services.dart';
+
 class PaceBar extends ConsumerStatefulWidget {
   const PaceBar({
     super.key,
@@ -33,6 +35,7 @@ class _PaceBarState extends ConsumerState<PaceBar>
   double lastValidIconPosition = 0.5; // Default to center
   late AnimationController _animationController;
   late Animation<double> _iconPositionAnimation;
+  bool _wasInTargetZone = false;
 
   @override
   void initState() {
@@ -116,7 +119,9 @@ class _PaceBarState extends ConsumerState<PaceBar>
       normalizedPace = normalizedPace.clamp(0.0, 1.0);
       lastValidIconPosition = normalizedPace;
 
-      // Animate the runner icon to the new position
+      // To trigger haptic feedback
+      _updatePaceStatus(normalizedPace, targetZoneStart, targetZoneEnd);
+
       _iconPositionAnimation = Tween<double>(
         begin: _iconPositionAnimation.value,
         end: normalizedPace * (widget.width - 50.0),
@@ -133,16 +138,11 @@ class _PaceBarState extends ConsumerState<PaceBar>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Visibility(
-            visible: normalizedPace >= targetZoneStart &&
-                normalizedPace <= targetZoneEnd,
-            child: const Icon(
-              Icons.sentiment_very_satisfied_rounded,
-              size: 40.0,
-              color: Color.fromARGB(255, 80, 91, 80),
-            ),
-          ),
+          // Pace Status Icon & Message
+          _buildPaceStatusIndicator(
+              normalizedPace, targetZoneStart, targetZoneEnd),
           const SizedBox(height: 10.0),
+          // Pace Bar
           Container(
             width: widget.width,
             height: widget.height,
@@ -150,40 +150,53 @@ class _PaceBarState extends ConsumerState<PaceBar>
               borderRadius: BorderRadius.circular(30.0),
               gradient: LinearGradient(
                 colors: const [
-                  Colors.red, // Too slow
-                  Colors.yellow, // Getting there
-                  Colors.green, // Just right
-                  Colors.yellow, // Getting too fast
-                  Colors.red // Too fast
+                  Colors.red,
+                  Colors.yellow,
+                  Colors.green,
+                  Colors.yellow,
+                  Colors.red
                 ],
                 stops: [
                   0.0,
                   targetZoneStart,
                   (targetZoneStart + targetZoneEnd) / 2,
                   targetZoneEnd,
-                  1.0,
+                  1.0
                 ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 8.0,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 2.0,
               ),
             ),
             child: Stack(
               children: [
+                // Runner Icon Animation
                 AnimatedBuilder(
                   animation: _iconPositionAnimation,
                   builder: (context, child) {
                     return Positioned(
                       left: _iconPositionAnimation.value,
                       top: 5.0,
-                      child: const Icon(
-                        Icons.directions_run,
-                        size: 50.0,
-                        color: Color.fromARGB(255, 0, 0, 0),
-                      ),
+                      child: _buildRunnerIcon(
+                          normalizedPace, targetZoneStart, targetZoneEnd),
                     );
                   },
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 10.0),
+          // Motivational Message
+          _buildMotivationalMessage(
+              normalizedPace, targetZoneStart, targetZoneEnd),
         ],
       ),
     );
@@ -209,5 +222,117 @@ class _PaceBarState extends ConsumerState<PaceBar>
   double _convertPaceToKilometers(double paceInSecondsPerMile) {
     const mileToKilometer = 1.60934;
     return paceInSecondsPerMile / mileToKilometer;
+  }
+
+  Widget _buildPaceStatusIndicator(
+      double pace, double targetStart, double targetEnd) {
+    if (pace >= targetStart && pace <= targetEnd) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.sentiment_very_satisfied_rounded,
+            size: 40.0,
+            color: Colors.green,
+          ),
+          const SizedBox(width: 8.0),
+          const Text(
+            "Perfect Pace!",
+            style: TextStyle(
+              fontSize: 18.0,
+              fontWeight: FontWeight.bold,
+              color: Colors.green,
+            ),
+          ),
+        ],
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildRunnerIcon(double pace, double targetStart, double targetEnd) {
+    Color iconColor = Colors.black;
+    double iconSize = 50.0;
+
+    if (pace >= targetStart && pace <= targetEnd) {
+      iconColor = Colors.green;
+      iconSize = 55.0; // Slightly larger when in perfect zone
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      child: Icon(
+        Icons.directions_run,
+        size: iconSize,
+        color: iconColor,
+      ),
+    );
+  }
+
+  Widget _buildMotivationalMessage(
+      double pace, double targetStart, double targetEnd) {
+    String message;
+    Color messageColor;
+    IconData messageIcon;
+
+    if (pace < targetStart) {
+      if (pace < targetStart * 0.5) {
+        message = "Pick up the pace! You've got this!";
+        messageIcon = Icons.directions_run;
+      } else {
+        message = "Push a little harder!";
+        messageIcon = Icons.trending_up;
+      }
+      messageColor = const Color.fromARGB(255, 0, 0, 0);
+    } else if (pace > targetEnd) {
+      if (pace > targetEnd * 1.5) {
+        message = "Slow down a little";
+        messageIcon = Icons.warning;
+      } else {
+        message = "Ease off slightly";
+        messageIcon = Icons.trending_down;
+      }
+      messageColor = const Color.fromARGB(255, 0, 0, 0);
+    } else {
+      message = "Perfect pace!";
+      messageIcon = Icons.stars;
+      messageColor = const Color.fromARGB(255, 0, 0, 0);
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(messageIcon, color: messageColor),
+        const SizedBox(width: 8),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 500),
+          child: Text(
+            message,
+            key: ValueKey(message),
+            style: TextStyle(
+              fontSize: 16.0,
+              fontWeight: FontWeight.bold,
+              color: messageColor,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _updatePaceStatus(
+      double normalizedPace, double targetZoneStart, double targetZoneEnd) {
+    bool isInTargetZone =
+        normalizedPace >= targetZoneStart && normalizedPace <= targetZoneEnd;
+
+    if (isInTargetZone != _wasInTargetZone) {
+      if (isInTargetZone) {
+        HapticFeedback.mediumImpact();
+      } else {
+        HapticFeedback.lightImpact();
+      }
+      _wasInTargetZone = isInTargetZone;
+    }
   }
 }

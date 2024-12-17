@@ -2,30 +2,51 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:untitled/auth_wraper.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'firebase/firebase_options.dart';
 
 //import 'home_screen.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  if (Firebase.apps.isEmpty) {
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-          apiKey: "AIzaSyBv36Hi6ONcFmKpAGJDYYQpLk9nlD-Eus8",
-          authDomain:
-              "pacerunner-backend.firebaseapp.com", //YOUR_PROJECT_ID.firebaseapp.com
-          projectId: "pacerunner-backend",
-          storageBucket: "pacerunner-backend.appspot.com",
-          messagingSenderId: "1051561767754", //GCM_SENDER_ID
-          appId: "1:1051561767754:ios:62d6231d0315b5514307b3"),
+  try {
+    print('Starting app initialization...');
+
+    WidgetsFlutterBinding.ensureInitialized();
+    print('Flutter binding initialized');
+
+    await dotenv.load(fileName: ".env");
+    print('Environment variables loaded');
+
+    // Check if Firebase is already initialized
+    if (Firebase.apps.isEmpty) {
+      print('Initializing Firebase...');
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        print('Firebase initialized successfully');
+      } catch (firebaseError) {
+        if (firebaseError.toString().contains('duplicate-app')) {
+          print('Firebase was already initialized, continuing...');
+        } else {
+          // If it's a different Firebase error, rethrow it
+          rethrow;
+        }
+      }
+    } else {
+      print('Firebase was already initialized, using existing instance');
+    }
+
+    runApp(
+      const ProviderScope(
+        child: MyApp(),
+      ),
     );
+    print('App started successfully');
+  } catch (e, stackTrace) {
+    print('Error during initialization: $e');
+    print('Stack trace: $stackTrace');
   }
-  runApp(
-    //(1)ProviderScope wraps the entire app, providing a container for all providers defined in the app.
-    //It's crucial because it initializes the provider system and allows the state managed by providers to be shared across the widget tree.
-    const ProviderScope(
-      child: MyApp(),
-    ),
-  );
 }
 
 class MyApp extends StatelessWidget {

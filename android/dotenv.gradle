@@ -1,0 +1,18 @@
+//This is a Gradle script that reads the .env file and makes its contents available as a map in the project.
+import java.nio.file.*
+
+def envFile = rootProject.file("../.env")
+def env = [:]
+
+if (envFile.exists()) {
+    envFile.eachLine { line ->
+        def matcher = line =~ /^([^=]*)=(.*)$/
+        if (matcher.matches()) {
+            env[matcher[0][1]] = matcher[0][2]
+        }
+    }
+}
+
+ext {
+    env = env
+}

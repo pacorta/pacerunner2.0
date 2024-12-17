@@ -107,10 +107,10 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
 
               //(2) Pop Dialog and Navigate to Running Stats Page
               Navigator.of(context).pop();
-              Navigator.push(
+              Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const RunningStatsPage(),
+                  builder: (_) => RunningStatsPage(newRunData: runData),
                 ),
               );
 
@@ -209,7 +209,10 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                   ),
                 ),
                 */
-                  const PaceBar(),
+                  PaceBar(
+                    width: MediaQuery.of(context).size.width * 0.85,
+                    height: 60.0,
+                  ),
                   /*
                 Container(
                   padding:

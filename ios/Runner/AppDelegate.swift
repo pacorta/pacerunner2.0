@@ -10,7 +10,9 @@ import GoogleSignIn
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
-    GMSServices.provideAPIKey("AIzaSyAw7Q29bqYbztG-QCz5EYiqinTw6lEsSHo")
+    //GMSServices.provideAPIKey(Bundle.main.object(forInfoDictionaryKey: "GoogleMapsApiKey") as? String ?? "")
+    GMSServices.provideAPIKey("GOOGLE_MAPS_API_KEY")
+    //GMSServices.provideAPIKey(ProcessInfo.processInfo.environment["GOOGLE_MAPS_API_KEY"] ?? "")
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

@@ -1,16 +1,17 @@
-PaceRunner Progress
+PaceRunner Progress 🏃
 
 7/12/24
 
-	•	The app can now detect the device’s current location and speed (in m/s).
+	•	📍 The app can now detect the device's current location and speed (in m/s).
 
 7/13/24
 
-	•	The app detects the device’s current location, but accuracy needs improvement (still buggy).
-	•	Detects speed in m/s, but I need to convert this to mph.
-	•	Successfully runs on an iPhone.
-	•	Note for new devices: Go to Settings > Security & Privacy > General Tab, click “iproxy was blocked,” then click Open Anyway to allow iproxy to run.
-	•	Adds polyline points to mark the route taken during the session.
+	•	📱 The app detects the device's current location, but accuracy needs improvement (still buggy).
+	•	Speed detection improvements:
+		•	Detects speed in m/s, but I need to convert this to mph.
+		•	Successfully runs on an iPhone.
+	•	💡 Note for new devices: Go to Settings > Security & Privacy > General Tab, click "iproxy was blocked," then click Open Anyway to allow iproxy to run.
+	•	🗺️ Adds polyline points to mark the route taken during the session.
 
 7/18/24
 
@@ -23,40 +24,41 @@ This was achieved using the Riverpod package for state management, which will be
 
 8/7/24
 
-	•	The app calculates the user’s traveled distance from when they press Start Running, displaying the total distance during the run.
-	•	After pressing End Run, a pop-up shows the total distance in the run stats.
-	•	Transitioned from local state (_totalDistance) to global state management (distanceProvider).
-	•	Tracking control has shifted to a state-driven approach using trackingProvider.
-	•	The app now reacts to state changes, making it more flexible and easier to manage.
+	•	✨ New Features:
+		•	The app calculates user's traveled distance from Start Running
+		•	Post-run stats popup with total distance
+	•	🔄 Technical Updates:
+		•	Transitioned to global state management
+		•	Improved tracking control with state-driven approach
 
-To-Do List
+To-Do List ✅
 
 	•	Create a summary page that includes the following:
-	•	Total trip’s polyline representation
+	•	Total trip's polyline representation
 	•	Average Pace
 	•	Total Distance
 	•	Time Elapsed
-	•	Main Goal: Add a progress bar that compares the user’s actual speed to an ideal speed:
+	•	Main Goal: Add a progress bar that compares the user's actual speed to an ideal speed:
 	•	[—————(Actual Pace: Too Slow)————————(Best Pace)————(Actual Pace: Too Fast)—————]
 	•	Remove the ability to go back to the home screen using the back arrow or sliding back, as this can cause data loss.
 
 8/12/24
 
-	•	Added the ability to choose between miles and kilometers on the Home Screen. This setting is reflected on the Current Run screen.
-	•	Added a check for user pace:
-	•	Pace1 = hr/distance: This is useful for knowing how long it takes the user to complete one mile.
-	•	Pace2 = distance/hr: This should be shown to the user, as it’s more common in other running apps.
-	•	Found that the GoogleMapsController function captureMapScreenshot() could be used to capture a screenshot of the overall path traveled by the user, ideally with the polyline displayed.
+	•	⚙️ Added unit selection (miles/kilometers) on Home Screen
+	•	📊 Added pace calculations:
+		•	Pace1 = hr/distance
+		•	Pace2 = distance/hr
+	•	📸 Discovered captureMapScreenshot() functionality
 
 To-Do List
 
 	•	Summary page to include:
-	•	Total trip’s polyline representation (possibly using captureMapScreenshot())
+	•	Total trip's polyline representation (possibly using captureMapScreenshot())
 	•	Pace1
 	•	Pace2
 	•	Total Distance
 	•	Time Elapsed
-	•	Main Goal: Add a progress bar to compare the runner’s speed to an ideal speed.
+	•	Main Goal: Add a progress bar to compare the runner's speed to an ideal speed.
 
 Resources:
 
@@ -68,7 +70,7 @@ For help getting started with Flutter development, view the [online documentatio
 
 9/24/2024
 
-	•	Focused on making the PaceBar work properly. Key changes include:
+	•	🎯 PaceBar Implementation:
 	1.	Created a file for current_pace, which calculates the pace over a small time window.
 	2.	Required the current pace in seconds to animate the pace bar accurately.
 	•	Initially considered extracting the data from current_pace.dart using StateNotifier, but this was more complex than using StateProvider.
@@ -86,13 +88,50 @@ For help getting started with Flutter development, view the [online documentatio
 
 10/14/2024
 
-	•	Merged the database phase of the application with the front end succesfully. The app now has a login screen and a screen to review the user's past runs data.
-	•	Every time the user stops a new run, the data will succesfully be written into their records
-
-	•	Bugs I've detected:
-			•	When the user press ‘stop running’, the app keeps tracking the run even after sending the correct summary data to the running stats screen.To fix this I think I either need to:
+	•	🔗 Database Integration:
+		•	Merged database with front end
+		•	Added login screen and run history
+	•	🐛 Known Bugs:
+			•	When the user press 'stop running', the app keeps tracking the run even after sending the correct summary data to the running stats screen.To fix this I think I either need to:
 				-Find the call that told the map to stop tracking (pretty sure it was called stopTracking) and find out how to call it with the button from currentRun
 				-or double the power of whatever is making it stop eventually, because it does *eventually stop*. By this I mean attempting to activate that stop sooner.
 			•	After having to upgrade to ios 15 becuse of dependency issues, I got the following messages in 'LocationPlugin' in the ios folder:
 				- [CLLocationManager authorizationStatus] 		error---->>	'authorizationStatus' is deprecated: first deprecated in iOS 14.0
 				- [CLLocationManager locationServicesEnabled]	error---->> 'This method can cause UI unresponsiveness if invoked on the main thread. Instead, consider waiting for the `-locationManagerDidChangeAuthorization:` callback and checking `authorizationStatus` first.'
+
+12/16/24: UI + Security Update
+
+	•	🛠️ Fixed bugs:
+			•	Distance unit conversion: Pace unit now updates correctly when switching distance units after run completion
+			•	Run data persistence: Resolved issue where previous run data was displaying in current run screen
+				•	Note: PaceBar still shows some residual data from previous runs
+			•	API Key Security: Integration of dotenv to hide api keys and other sensitive data.
+	
+	•	📝 Lessons Learned:
+			•	This project has taught me the importance of secure development practices and clean coding standards:
+				•	I successfully implemented dotenv to manage sensitive information like API keys, ensuring that future development adheres to security best practices.
+				•	I now proactively approach projects with a focus on secure and maintainable code.
+	•	🔄 In Progress:
+			•	Adding vibration feedback for pace notifications
+
+	•	✅ To-Do:
+			•	UI improvements for running screen, with focus on PaceBar enhancement for clarity and usability.
+			•	Resolve pace tracking issues:
+				•	Current pace and current pace in seconds not updating properly
+				•	Consider consolidating pace states in providers for better PaceBar integration
+			•	Take advantage of the variance calculations (difference between current pace and target pace) to create difficulty levels (easy, medium, hard).
+			•	Add advanced visualizations, like post-run heatmaps to analyze pace trends.
+
+	•	🤖 Android Configuration Setup:
+
+			While the app currently focuses on iOS development, the Android configuration has been set up for future compatibility. The setup includes:
+
+			•	Configured Gradle build system with Firebase integration
+			•	Set up Google Services plugin in the following files:
+				•	`android/settings.gradle`
+				•	`android/app/build.gradle`
+				•	`android/build.gradle`
+
+			This configuration will simplify future Android deployment when needed, but is not actively used in the current development phase.
+
+			Note: The app currently targets iOS development, and Android-specific features are not implemented yet.

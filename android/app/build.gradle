@@ -1,10 +1,11 @@
 plugins {
-    //id "com.google.android.libraries.mapsplatform.secrets-gradle-plugin"
     id "com.android.application"
     id "kotlin-android"
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
+    id 'com.google.gms.google-services'
 }
+
+apply from: rootProject.file("dotenv.gradle") //This is a Gradle script that reads the .env file and makes its contents available as a map in the project.
 
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file("local.properties")
@@ -43,7 +44,10 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
+
+        buildConfigField "String", "GOOGLE_MAPS_API_KEY", "\"${env.GOOGLE_MAPS_API_KEY}\"" //This is the Google Maps API key for the Android side.
     }
+    
 
     buildTypes {
         release {
@@ -56,4 +60,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation platform('com.google.firebase:firebase-bom:32.7.4')
+    implementation 'com.google.firebase:firebase-analytics'
 }

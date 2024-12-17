@@ -15,26 +15,6 @@ class RunningStatsPage extends StatefulWidget {
 }
 
 class _RunningStatsPageState extends State<RunningStatsPage> {
-  @override
-  void initState() {
-    super.initState();
-    if (widget.newRunData != null) {
-      _saveRunToFirebase(widget.newRunData!);
-    }
-  }
-
-  void _saveRunToFirebase(Map<String, dynamic> runData) {
-    final userId = FirebaseAuth.instance.currentUser!.uid;
-    runData['timestamp'] = FieldValue.serverTimestamp();
-    FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('runs')
-        .add(runData)
-        .then((_) => print('Run saved successfully'))
-        .catchError((error) => print('Failed to save run: $error'));
-  }
-
   void _deleteRun(String docId) {
     final userId = FirebaseAuth.instance.currentUser!.uid;
     FirebaseFirestore.instance

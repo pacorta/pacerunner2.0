@@ -40,12 +40,14 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(
                         height:
                             240), // Adjust this value to position the form correctly
+                    /*
                     _buildForm(),
                     const SizedBox(height: 24),
                     _buildSignInButton(),
                     const SizedBox(height: 16),
                     _buildCreateAccountButton(),
                     const SizedBox(height: 16),
+                    */
                     _buildGoogleSignInButton(),
                   ],
                 ),

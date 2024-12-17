@@ -3,21 +3,21 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>1051561767754-cmrm01dde80s8coip7411e33c6n2i801.apps.googleusercontent.com</string>
+	<string>1051561767754-rthavtaor1isceujqukj5cpol9hs9cgg.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.1051561767754-cmrm01dde80s8coip7411e33c6n2i801</string>
+	<string>com.googleusercontent.apps.1051561767754-rthavtaor1isceujqukj5cpol9hs9cgg</string>
 	<key>API_KEY</key>
-	<string>AIzaSyBv36Hi6ONcFmKpAGJDYYQpLk9nlD-Eus8</string>
+	<string>AIzaSyBmle7gjZL5wMGladrEEjygTEytbv5H7dg</string>
 	<key>GCM_SENDER_ID</key>
 	<string>1051561767754</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.orzan.pacerunner</string>
+	<string>com.example.databaseAttempt1</string>
 	<key>PROJECT_ID</key>
 	<string>pacerunner-backend</string>
 	<key>STORAGE_BUCKET</key>
-	<string>pacerunner-backend.appspot.com</string>
+	<string>pacerunner-backend.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -29,6 +29,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:1051561767754:ios:53344a6e3e8949bb4307b3</string>
+	<string>1:1051561767754:ios:62d6231d0315b5514307b3</string>
 </dict>
 </plist>
