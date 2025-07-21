@@ -227,9 +227,13 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildSingleGoalCard('Selected Distance',
-            '${selectedDistance?.toStringAsFixed(2)} $unitLabel'),
-        _buildSingleGoalCard('Selected \nTime', _formatTime(selectedTime)),
+        _buildSingleGoalCard(
+            'Selected Distance',
+            selectedDistance != null
+                ? '${selectedDistance!.toStringAsFixed(2)} $unitLabel'
+                : '---'),
+        _buildSingleGoalCard('Selected \nTime',
+            selectedTime > 0 ? _formatTime(selectedTime) : '---'),
       ],
     );
   }
@@ -238,7 +242,8 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
     return Expanded(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
+        height: 130,
         decoration: BoxDecoration(
           color: const Color(0xFFFEE1DC),
           borderRadius: BorderRadius.circular(24),
@@ -252,6 +257,7 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
               title,
@@ -260,7 +266,7 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
                 color: Colors.black54,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               content,
               style: const TextStyle(
@@ -268,6 +274,8 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
                 fontWeight: FontWeight.bold,
                 color: Color.fromARGB(255, 0, 0, 0),
               ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ],
         ),
@@ -499,12 +507,16 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
   // @param time The time in minutes to be formatted
   // @returns Formatted string in "X hr Y min" or "Y min" format
   String _formatTime(double time) {
+    if (time <= 0) {
+      return '---';
+    }
+
     if (time >= 60) {
       final hours = time ~/ 60;
       final minutes = (time % 60).toInt();
-      return '$hours hr ${minutes.toString().padLeft(2, '0')} min';
+      return '${hours}:${minutes.toString().padLeft(2, '0')}h';
     } else {
-      return '${time.toInt()} min';
+      return '${time.toInt()}min';
     }
   }
 
@@ -589,8 +601,19 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
               TextButton(
                 onPressed: () {
                   if (controller.text.isNotEmpty) {
-                    onSubmitted(controller.text);
-                    Navigator.pop(context);
+                    final value = double.tryParse(controller.text);
+
+                    if (value != null && value > 0 && value <= 999.99) {
+                      onSubmitted(controller.text);
+                      Navigator.pop(context);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'Please enter a reasonable distance (0.01 - 999.99)'),
+                        ),
+                      );
+                    }
                   }
                 },
                 child: const Text("Confirm"),

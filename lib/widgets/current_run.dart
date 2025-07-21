@@ -20,6 +20,8 @@ import 'distance_unit_as_string_provider.dart';
 
 //import 'tracking_provider.dart';
 
+import 'current_pace_in_seconds_provider.dart';
+
 class CurrentRun extends ConsumerStatefulWidget {
   const CurrentRun({super.key});
 
@@ -66,7 +68,10 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     _stopwatch.stop();
     _timer?.cancel();
 
-    // Extract the numeric part from the formatted distance
+    // ✅ SOLUCIÓN: Para el tracking INMEDIATAMENTE
+    ref.read(trackingProvider.notifier).state = false;
+
+    // ✅ Ahora captura las stats con tracking ya parado
     String distanceString = ref.read(formattedDistanceProvider).split(' ')[0];
     double distance = double.tryParse(distanceString) ?? 0.0;
     String distanceUnitString = ref.read(formattedUnitString);
@@ -76,11 +81,10 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     // Prepare the run data map
     final runData = {
       'distance': distance,
-      'distanceUnitString':
-          distanceUnitString, //tested and works [nov 20, 2024]
+      'distanceUnitString': distanceUnitString,
       'time': finalTime,
       'averagePace': finalPace,
-      'timestamp': FieldValue.serverTimestamp(), // For accurate sorting
+      'timestamp': FieldValue.serverTimestamp(),
     };
 
     // Show the alert dialog with summary stats
@@ -98,12 +102,12 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
           TextButton(
             child: const Text('OK'),
             onPressed: () async {
-              //(1) Reset Providers
-              ref.read(trackingProvider.notifier).state = false;
+              //(1) Reset Providers (tracking ya está en false)
               ref.read(distanceProvider.notifier).state = 0.0;
               ref.read(speedProvider.notifier).state = 0.0;
               ref.read(elapsedTimeProvider.notifier).state = '00:00:00';
-              //consider adding recent pace provider resetter
+              resetCurrentPaceInSecondsProvider();
+              resetCurrentPaceProvider();
 
               //(2) Pop Dialog and Navigate to Running Stats Page
               Navigator.of(context).pop();
@@ -114,7 +118,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                 ),
               );
 
-              //(3) Save the run data to Firebase only when the user confirms the run
+              //(3) Save the run data to Firebase
               final user = FirebaseAuth.instance.currentUser;
               if (user != null) {
                 FirebaseFirestore.instance
@@ -123,12 +127,9 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                     .collection('runs')
                     .add(runData)
                     .then((_) {
-                  // We could handle successful save here
                   debugPrint('Run saved successfully');
                 }).catchError((error) {
-                  // Handle any Firebase errors here
                   debugPrint('Error saving run: $error');
-                  // Maybe show a snackbar or other error notification
                 });
               }
             },

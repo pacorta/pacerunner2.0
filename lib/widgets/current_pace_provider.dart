@@ -17,6 +17,12 @@ double startWindowElapsedSeconds = 0.0;
 double startWindowDistanceKm = 0.0;
 String lastValidPace = "---";
 
+void resetCurrentPaceProvider() {
+  startWindowElapsedSeconds = 0.0;
+  startWindowDistanceKm = 0.0;
+  lastValidPace = "---";
+}
+
 final currentPaceProvider = Provider<String>((ref) {
   final currentElapsedSeconds = ref.watch(elapsedTimeProviderInSeconds);
   final currentDistanceKm = ref.watch(distanceProvider);

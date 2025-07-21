@@ -325,7 +325,7 @@ class _PaceBarState extends ConsumerState<PaceBar>
       double normalizedPace, double targetZoneStart, double targetZoneEnd) {
     bool isInTargetZone =
         normalizedPace >= targetZoneStart && normalizedPace <= targetZoneEnd;
-
+    //haptic feedback (medium impact when in target zone, light impact when not)
     if (isInTargetZone != _wasInTargetZone) {
       if (isInTargetZone) {
         HapticFeedback.mediumImpact();
