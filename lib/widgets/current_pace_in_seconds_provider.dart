@@ -12,14 +12,20 @@ double startWindowElapsedSeconds = 0.0;
 double startWindowDistanceKm = 0.0;
 double lastValidPaceInSeconds = 0.0; // Keep track of the last valid pace
 
+void resetCurrentPaceInSecondsProvider() {
+  startWindowElapsedSeconds = 0.0;
+  startWindowDistanceKm = 0.0;
+  lastValidPaceInSeconds = 0.0;
+}
+
 final currentPaceInSecondsProvider = Provider<double>((ref) {
   final currentElapsedSeconds = ref.watch(elapsedTimeProviderInSeconds);
   final currentDistanceKm = ref.watch(distanceProvider);
   final unit = ref.watch(distanceUnitProvider);
 
-  // Check if the 3-second window has passed
-  if (currentElapsedSeconds - startWindowElapsedSeconds >= 3.0) {
-    // Calculate the time and distance differences over the 3-second interval
+  // Check if the 4-second window has passed
+  if (currentElapsedSeconds - startWindowElapsedSeconds >= 4.0) {
+    // Calculate the time and distance differences over the 4-second interval
     final timeDifference = currentElapsedSeconds - startWindowElapsedSeconds;
     final distanceDifference = currentDistanceKm - startWindowDistanceKm;
 
@@ -49,6 +55,6 @@ final currentPaceInSecondsProvider = Provider<double>((ref) {
     return paceInSeconds;
   }
 
-  // If 3 seconds haven't passed, return the last valid pace
+  // If 4 seconds haven't passed, return the last valid pace
   return lastValidPaceInSeconds;
 });

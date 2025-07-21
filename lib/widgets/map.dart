@@ -200,7 +200,7 @@ class _MapState extends ConsumerState<Map> {
                 children: [
                   GoogleMap(
                     onMapCreated: _onMapCreated,
-                    mapType: MapType.satellite,
+                    mapType: MapType.terrain,
                     myLocationEnabled: true,
                     myLocationButtonEnabled: true,
                     initialCameraPosition: CameraPosition(
@@ -211,7 +211,7 @@ class _MapState extends ConsumerState<Map> {
                       Polyline(
                         polylineId: const PolylineId('route'),
                         points: polylineCoordinates,
-                        color: const Color.fromARGB(255, 238, 0, 255),
+                        color: const Color.fromARGB(255, 255, 49, 49),
                         width: 5,
                       ),
                     },

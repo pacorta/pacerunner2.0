@@ -89,6 +89,7 @@ flutter:
     - images/login_screen.png
     - images/login3.png
     - images/google.png
+    - .env
 
   #   - images/a_dot_ham.jpeg
 
