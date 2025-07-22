@@ -200,12 +200,46 @@ For help getting started with Flutter development, view the [online documentatio
 				•	"Only x% of the world is able to run a distance this long!"
 
 
-7/9/2025:
+7/21/2025:
 
 			•	Added real-time GPS strength indicator with color-coded status (strong/good/weak/acquiring) using location accuracy data from map.dart.
 
 			•	To-Do (Must complete for MVP)
-				1. [√] Add GPS strength indicator with connection status (acquiring/weak/good/strong) 
-				2. Implement user-location-fetching pre-warming during pace selection flow
-				3. Add pause/resume functionality with proper state management
-				4. UI/UX improvements (next section)
+				1. [√] 	Add GPS strength indicator with connection status (acquiring/weak/good/strong) 
+				2. 		Implement user-location-fetching pre-warming during pace selection flow
+				3. 		Add pause/resume functionality with proper state management
+				4. 		UI/UX improvements
+
+7/22/2025:
+
+		•	GPS Pre-warming Implementation: Solved GPS delayed start during the start of the run by, instead, implementing location fetching during pace selection process.
+
+				• Created LocationService to centralize all GPS operations across the app
+				• Moved GPS initialization from CurrentRun screen to PaceSelection screen  
+				• Eliminated 3-10 second GPS delay when users press "Start Running"
+				• Made it modular for (potential) alternate run modes in the future.
+
+			•	How this was achieved:
+				• LocationService.dart: Static class using StreamController.broadcast() for multiple widget listeners
+				• PaceSelection widget: GPS starts warming in initState(), continues during user configuration
+				• Map widget: Converted from GPS owner to GPS consumer, listens to existing LocationService stream
+				• Smart cleanup: Only stops GPS if user exits without completing run setup
+
+			•	Technical challenges solved:
+				• Riverpod lifecycle issue: "Cannot use ref after widget disposed" error when stopping GPS
+				• Solution: Added try-catch blocks around provider updates in LocationService
+				• Stream management: Replaced direct GPS subscriptions with broadcast stream architecture
+
+			•	Lessons learned:
+				• Static services holding widget references need defensive programming (try-catch)
+				• StreamController.broadcast() enables multiple listeners to same GPS stream
+				• GPS pre-warming improves UX a lot.
+				• Singleton pattern with static methods provides clean service layer without constructor overhead
+
+			•	Result: Users now experience instant GPS lock when starting runs, significantly improved UX flow.
+
+		•	To-Do (Must complete for MVP):
+			1. [√] 	Add GPS strength indicator with connection status (acquiring/weak/good/strong) 
+			2. [√] 	Implement user-location-fetching pre-warming during pace selection flow
+			3. 		Add pause/resume functionality with proper state management
+			4. 		UI/UX improvements

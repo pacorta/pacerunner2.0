@@ -15,6 +15,8 @@ import 'tracking_provider.dart';
 import 'distance_provider.dart';
 
 import 'current_run.dart';
+import '../services/location_service.dart';
+
 /*
 import 'package:untitled/widgets/distance_unit_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -47,6 +49,47 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
 
   bool isDistanceConfirmed = false;
   bool isTimeConfirmed = false;
+
+  //Override initState para GPS pre-warming
+  @override
+  void initState() {
+    super.initState();
+
+    // 🚀 Start GPS pre-warming in background
+    _startLocationPrewarming();
+  }
+
+  //Función para iniciar GPS pre-warming
+  void _startLocationPrewarming() async {
+    print('PaceSelection: Starting GPS pre-warming...');
+
+    // Initialize LocationService with Riverpod ref
+    LocationService.initialize(ref);
+
+    // Start location tracking in background
+    final success = await LocationService.startLocationTracking();
+
+    if (success) {
+      print('PaceSelection: GPS pre-warming started successfully');
+    } else {
+      print('PaceSelection: GPS pre-warming failed');
+    }
+  }
+
+  //Cleanup cuando user sale sin completar
+  @override
+  void dispose() {
+    _distanceController.dispose();
+
+    // Solo stop GPS si user no llegó a CurrentRun
+    if (!isTimeConfirmed) {
+      print(
+          'PaceSelection: User left without completing, stopping GPS pre-warming');
+      LocationService.stopLocationTracking();
+    }
+
+    super.dispose();
+  }
 
   // Builds a responsive UI with a three-step wizard pattern:
   // 1. Distance Selection
@@ -371,19 +414,34 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
           elevation: 0,
         ),
         onPressed: () {
-          final trackingNotifier = ref.read(trackingProvider.notifier);
-          if (isTracking) {
-            trackingNotifier.state = false;
-            print(
-                'Traveled distance: ${ref.read(distanceProvider).toStringAsFixed(2)} km');
+          //Verificar que GPS esté ready antes de navegar
+          if (LocationService.isInitialized) {
+            print('PaceSelection: GPS is warm, navigating to CurrentRun');
+
+            final trackingNotifier = ref.read(trackingProvider.notifier);
+            if (isTracking) {
+              trackingNotifier.state = false;
+              print(
+                  'Traveled distance: ${ref.read(distanceProvider).toStringAsFixed(2)} km');
+            } else {
+              trackingNotifier.state = true;
+              ref.read(distanceProvider.notifier).state = 0.0;
+            }
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CurrentRun()),
+            );
           } else {
-            trackingNotifier.state = true;
-            ref.read(distanceProvider.notifier).state = 0.0;
+            // ✅ NUEVO: Si GPS no está ready, mostrar feedback
+            print('PaceSelection: GPS not ready yet, please wait');
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('GPS is warming up, please wait a moment...'),
+                duration: Duration(seconds: 2),
+              ),
+            );
           }
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CurrentRun()),
-          );
         },
         child: const Row(
           mainAxisSize: MainAxisSize.min,
@@ -675,12 +733,6 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
     }
 
     return {'min': 1.0, 'max': 390.0};
-  }
-
-  @override
-  void dispose() {
-    _distanceController.dispose();
-    super.dispose();
   }
 }
 
