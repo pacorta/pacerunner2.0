@@ -21,6 +21,7 @@ import 'distance_unit_as_string_provider.dart';
 //import 'tracking_provider.dart';
 
 import 'current_pace_in_seconds_provider.dart';
+import 'gps_indicator.dart';
 
 class CurrentRun extends ConsumerStatefulWidget {
   const CurrentRun({super.key});
@@ -179,6 +180,11 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                             fontSize: 24, fontWeight: FontWeight.bold),
                       ),
                     ),
+                  ),
+                  const Positioned(
+                    top: 10,
+                    right: 10,
+                    child: GPSIndicator(),
                   ),
                 ],
               ),

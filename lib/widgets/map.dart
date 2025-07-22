@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'distance_provider.dart';
 import 'tracking_provider.dart';
 import 'speed_provider.dart';
+import 'gps_status_provider.dart';
 import 'dart:math' as math;
 
 class Map extends ConsumerStatefulWidget {
@@ -107,6 +108,11 @@ class _MapState extends ConsumerState<Map> {
       //print("Location data: ${locationData.latitude}, ${locationData.longitude}"); // Log entry
       //print("Accuracy: ${locationData.accuracy}, Altitude: ${locationData.altitude}"); // More details
       //print('Current speed: ${locationData.speed} m/s');
+
+      //Actualizar GPS status basado en accuracy
+      final gpsStatus = determineGPSStatus(locationData.accuracy);
+      ref.read(gpsStatusProvider.notifier).state = gpsStatus;
+
       if (mounted) {
         setState(() {
           _currentPosition =
@@ -126,6 +132,10 @@ class _MapState extends ConsumerState<Map> {
 
       //december 3, 2024: added this check to prevent memory leak
       if (!mounted) return;
+
+      //Actualizar GPS status en cada cambio de ubicación
+      final gpsStatus = determineGPSStatus(currentLocation.accuracy);
+      ref.read(gpsStatusProvider.notifier).state = gpsStatus;
 
       final isTracking = ref.read(trackingProvider);
       if (!isTracking) {

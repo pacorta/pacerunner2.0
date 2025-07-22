@@ -198,3 +198,13 @@ For help getting started with Flutter development, view the [online documentatio
 			•	Add fun features or facts about the running stats:
 				•	"Based on your running stats, you could outrun this animal" (reference: https://www.runguides.com/event/21604/find-your-strength-5k)
 				•	"Only x% of the world is able to run a distance this long!"
+
+
+7/9/2025
+			•	Added real-time GPS strength indicator with color-coded status (strong/good/weak/acquiring) using location accuracy data from map.dart.
+
+			•	To-Do (Must complete for MVP)
+				1. Add GPS strength indicator with connection status (acquiring/weak/good/strong) [√]
+				2. Implement user-location-fetching pre-warming during pace selection flow
+				3. Add pause/resume functionality with proper state management
+				4. UI/UX improvements (next section)
