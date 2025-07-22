@@ -196,5 +196,5 @@ For help getting started with Flutter development, view the [online documentatio
 				•	Add another fun mode like "dog-chase" or "zombie-chase" where you have to outrun them. They could switch the pace at random times and you will be notified to hurry or they catch you.
 
 			•	Add fun features or facts about the running stats:
-				•	"Based on your running stats, you could outrun this animal"
+				•	"Based on your running stats, you could outrun this animal" (reference: https://www.runguides.com/event/21604/find-your-strength-5k)
 				•	"Only x% of the world is able to run a distance this long!"
