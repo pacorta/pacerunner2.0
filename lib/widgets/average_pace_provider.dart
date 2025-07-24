@@ -2,13 +2,13 @@
 //              Average Pace = Time / Distance
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'elapsed_time_provider.dart'; //1 √
+import 'pausable_timer_provider.dart';
 import 'distance_provider.dart'; //2 √
 import 'distance_unit_provider.dart'; //3 √
 import 'distance_unit_conversion.dart'; //4 √
 
 final averagePaceProvider = Provider<String>((ref) {
-  final elapsedSeconds = ref.watch(elapsedTimeProviderInSeconds); //1
+  final elapsedSeconds = ref.watch(elapsedTimeInSecondsProvider);
   final distanceKm = ref.watch(distanceProvider); //2
   final unit = ref.watch(distanceUnitProvider); //3
 

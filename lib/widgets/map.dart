@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'distance_provider.dart';
 import 'tracking_provider.dart';
 import 'speed_provider.dart';
+import 'run_state_provider.dart';
 import '../services/location_service.dart';
 import 'dart:math' as math;
 
@@ -55,6 +56,8 @@ class _MapState extends ConsumerState<Map> {
         if (!mounted) return;
 
         final isTracking = ref.read(trackingProvider);
+        final runState = ref.read(runStateProvider); // Leer run state
+
         if (!isTracking) {
           _cleanupLocationTracking();
           return;
@@ -70,9 +73,10 @@ class _MapState extends ConsumerState<Map> {
           double speedInMph = getSpeedInMph();
           ref.read(speedProvider.notifier).state = speedInMph;
 
-          // Distance calculations
+          // Siempre agregar ubicación, pero solo calcular distancia en RUNNING
           if (ref.read(trackingProvider)) {
-            if (_locations.isNotEmpty) {
+            // Solo calcular distancia si está RUNNING
+            if (runState == RunState.running && _locations.isNotEmpty) {
               double additionalDistance = _calculateDistance(
                 _locations.last.latitude!,
                 _locations.last.longitude!,
@@ -81,10 +85,12 @@ class _MapState extends ConsumerState<Map> {
               );
               ref.read(distanceProvider.notifier).state += additionalDistance;
             }
+
+            // SIEMPRE agregar ubicación (para mantener continuidad)
             _locations.add(currentLocation);
           }
 
-          // Update polyline
+          // Siempre actualizar polyline y cámara (para mostrar movimiento en mapa)
           LatLng newPoint =
               LatLng(currentLocation.latitude!, currentLocation.longitude!);
           _updatePolyline(newPoint);

@@ -433,7 +433,7 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
               MaterialPageRoute(builder: (context) => const CurrentRun()),
             );
           } else {
-            // ✅ NUEVO: Si GPS no está ready, mostrar feedback
+            // Si GPS no esta "ready", mostrar feedback
             print('PaceSelection: GPS not ready yet, please wait');
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(

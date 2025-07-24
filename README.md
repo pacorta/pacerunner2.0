@@ -243,3 +243,41 @@ For help getting started with Flutter development, view the [online documentatio
 			2. [√] 	Implement user-location-fetching pre-warming during pace selection flow
 			3. 		Add pause/resume functionality with proper state management
 			4. 		UI/UX improvements
+
+
+7/23/2025:
+
+	•	Pause/Resume/Stop Implementation: Added complete state management for running sessions with proper timer control and correct data handling.
+
+		• Created RunState enum (notStarted, running, paused, finished) for clear session state management
+		• Implemented PausableTimer class to handle timer that keeps accumulated time across pause/resume cycles
+		• Updated CurrentRun screen to use state-driven approach instead of manual Stopwatch/Timer management
+		• Dynamic UI buttons based on run state: PAUSE (when running) or RESUME/FINISH (when paused)
+
+		How this was achieved:
+		• RunStateProvider: Central state management for overall run status with derived providers for UI logic
+		• PausableTimerProvider: Custom timer that tracks accumulated time and session start time separately
+		• Map widget integration: Distance only accumulates during RunState.running, preventing wrong data during pause
+		• Location tracking continuity: GPS updates continue during pause to prevent distance jumps on resume
+
+		Technical challenges solved:
+		• Race condition in _endRun(): Fixed order of operations to capture final data before resetting timer state
+		• Distance accumulation during pause: Added conditional logic to only track distance when actively running
+		• Distance jumping on resume: Maintained continuous location history even during pause state
+		• Timer state consistency: Replaced multiple elapsed time providers with one unified system
+
+		Lessons learned:
+		• Order of operations is very important when capturing final state before cleanup
+		• Separating data collection (GPS) from data processing (distance calculation) prevents edge cases
+		• State-driven UI design scales better than manual button state management
+		• Having one place for timer data prevents provider synchronization issues
+
+		Result: Users can now pause runs without losing data accuracy, with proper time tracking and distance calculations.
+
+	•	To-Do (Must complete for MVP):
+			1. [√] 	Add GPS strength indicator with connection status (acquiring/weak/good/strong) 
+			2. [√] 	Implement user-location-fetching pre-warming during pace selection flow
+			3. [√]	Add pause/resume/stop functionality with proper state management
+			4.		'Calculating wheel' for current pace
+			5.		Grace period in the beginning for pace calculation
+			6. 		UI/UX improvements

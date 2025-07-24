@@ -23,6 +23,9 @@ import 'distance_unit_as_string_provider.dart';
 import 'current_pace_in_seconds_provider.dart';
 import 'gps_indicator.dart';
 
+import 'run_state_provider.dart';
+import 'pausable_timer_provider.dart';
+
 class CurrentRun extends ConsumerStatefulWidget {
   const CurrentRun({super.key});
 
@@ -31,60 +34,49 @@ class CurrentRun extends ConsumerStatefulWidget {
 }
 
 class _CurrentRunState extends ConsumerState<CurrentRun> {
-  final Stopwatch _stopwatch = Stopwatch();
-  Timer? _timer;
-  //String _elapsedTime = '00:00:00';
-
-/*
-  double avgPace(){
-    return _elapsedTime/ref.read(distanceProvider).toStringAsFixed(2);
-  }
-*/
-
   @override
   void initState() {
     super.initState();
 
-    _startTimer();
-  }
-
-  void _startTimer() {
-    _stopwatch.start();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        final newTime = _formatDuration(_stopwatch.elapsed);
-        ref.read(elapsedTimeProvider.notifier).state = newTime;
-      });
+    // Iniciar el run automáticamente cuando se carga la pantalla
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(runStateProvider.notifier).state = RunState.running;
+      ref.read(pausableTimerProvider.notifier).start();
     });
   }
 
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, "0");
-    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+  // Función para pausar run
+  void _pauseRun() {
+    ref.read(pausableTimerProvider.notifier).pause();
+    ref.read(runStateProvider.notifier).state = RunState.paused;
+  }
+
+  void _resumeRun() {
+    ref.read(pausableTimerProvider.notifier).resume();
+    ref.read(runStateProvider.notifier).state = RunState.running;
   }
 
   void _endRun() {
-    _stopwatch.stop();
-    _timer?.cancel();
-
-    // ✅ SOLUCIÓN: Para el tracking INMEDIATAMENTE
-    ref.read(trackingProvider.notifier).state = false;
-
-    // ✅ Ahora captura las stats con tracking ya parado
+    // Paso 1: Capturar datos antes de resetear
     String distanceString = ref.read(formattedDistanceProvider).split(' ')[0];
     double distance = double.tryParse(distanceString) ?? 0.0;
     String distanceUnitString = ref.read(formattedUnitString);
-    final finalTime = ref.read(elapsedTimeProvider);
+    final finalTime = ref.read(formattedElapsedTimeProvider);
     final finalPace = ref.read(averagePaceProvider);
 
-    // Prepare the run data map
+    // Paso 2: Ahora si, resetear cronómetro y cambiar estado
+    ref.read(pausableTimerProvider.notifier).stop();
+    ref.read(runStateProvider.notifier).state = RunState.finished;
+
+    // Paso 3: Para el tracking GPS inmediatamente
+    ref.read(trackingProvider.notifier).state = false;
+
+    // Paso 4: Usar los datos capturados (que YA tienen los valores correctos)
     final runData = {
       'distance': distance,
       'distanceUnitString': distanceUnitString,
-      'time': finalTime,
-      'averagePace': finalPace,
+      'time': finalTime, // Ya tiene el tiempo correcto
+      'averagePace': finalPace, // Ya tiene el pace correcto
       'timestamp': FieldValue.serverTimestamp(),
     };
 
@@ -142,17 +134,16 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
 
   @override
   Widget build(BuildContext context) {
-    //final speed = ref.watch(formattedSpeedProvider);
-    final formattedDistance = ref.watch(formattedDistanceProvider); //#km2miles
-    final elapsedTime = ref.watch(elapsedTimeProvider);
-    //final avgPace = ref.watch(averagePaceProvider);
+    final formattedDistance = ref.watch(formattedDistanceProvider);
+    final elapsedTime = ref.watch(formattedElapsedTimeProvider);
     final currentPace = ref.watch(currentPaceProvider);
+    final runState = ref.watch(runStateProvider);
 
     return PopScope(
       canPop: false,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Current Run'),
+          title: Text('Current Run - ${getRunStateText(runState)}'),
           backgroundColor: const Color.fromARGB(255, 255, 255, 255),
           automaticallyImplyLeading: false,
         ),
@@ -161,10 +152,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
             Expanded(
               child: Stack(
                 children: [
-                  const SizedBox(
-                    height: 500,
-                    child: Map(),
-                  ),
+                  const SizedBox(height: 500, child: Map()),
                   Positioned(
                     top: 10,
                     left: 10,
@@ -181,11 +169,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                       ),
                     ),
                   ),
-                  const Positioned(
-                    top: 10,
-                    right: 10,
-                    child: GPSIndicator(),
-                  ),
+                  const Positioned(top: 10, right: 10, child: GPSIndicator()),
                 ],
               ),
             ),
@@ -193,48 +177,18 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
             Container(
               decoration: const BoxDecoration(
                 image: DecorationImage(
-                  image: AssetImage(
-                      'images/background.png'), // Add your background image
+                  image: AssetImage('images/background.png'),
                   fit: BoxFit.cover,
                 ),
               ),
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  /*
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'SPEED: $speed',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                */
                   PaceBar(
                     width: MediaQuery.of(context).size.width * 0.85,
                     height: 60.0,
                   ),
-                  /*
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'AVERAGE PACE: $avgPace',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                */
+                  const SizedBox(height: 16),
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -248,6 +202,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                           fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ),
+                  const SizedBox(height: 8),
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -262,16 +217,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _endRun,
-                    style: ElevatedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      minimumSize: const Size(double.infinity, 50),
-                    ),
-                    child: const Text('STOP', style: TextStyle(fontSize: 18)),
-                  ),
+                  _buildControlButtons(runState),
                 ],
               ),
             ),
@@ -279,5 +225,88 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
         ),
       ),
     );
+  }
+
+  // Botones que cambian según el estado del run
+  Widget _buildControlButtons(RunState runState) {
+    switch (runState) {
+      case RunState.running:
+        return Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _pauseRun,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30)),
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.pause, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text('PAUSE',
+                        style: TextStyle(fontSize: 18, color: Colors.white)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+
+      case RunState.paused:
+        return Row(
+          children: [
+            Expanded(
+              flex: 1,
+              child: ElevatedButton(
+                onPressed: _resumeRun,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30)),
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.play_arrow, color: Colors.white),
+                    SizedBox(width: 4),
+                    Text('RESUME',
+                        style: TextStyle(fontSize: 16, color: Colors.white)),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(width: 10),
+            Expanded(
+              flex: 1,
+              child: ElevatedButton(
+                onPressed: _endRun,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30)),
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.stop, color: Colors.white),
+                    SizedBox(width: 4),
+                    Text('FINISH',
+                        style: TextStyle(fontSize: 16, color: Colors.white)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+
+      default:
+        return Container(); // No mostrar botones en otros estados
+    }
   }
 }

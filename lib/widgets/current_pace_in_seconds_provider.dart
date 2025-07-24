@@ -3,7 +3,7 @@
 //Current Pace = Time / Distance
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'elapsed_time_provider.dart';
+import 'pausable_timer_provider.dart'; // Nuevo import (antes era elapsed_time_provider.dart)
 import 'distance_provider.dart';
 import 'distance_unit_provider.dart';
 import 'distance_unit_conversion.dart';
@@ -19,7 +19,7 @@ void resetCurrentPaceInSecondsProvider() {
 }
 
 final currentPaceInSecondsProvider = Provider<double>((ref) {
-  final currentElapsedSeconds = ref.watch(elapsedTimeProviderInSeconds);
+  final currentElapsedSeconds = ref.watch(elapsedTimeInSecondsProvider);
   final currentDistanceKm = ref.watch(distanceProvider);
   final unit = ref.watch(distanceUnitProvider);
 
