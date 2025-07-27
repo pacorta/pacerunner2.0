@@ -58,7 +58,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Column(
               children: <Widget>[
                 ElevatedButton(
-                    child: const Text('Pacebar Run'),
+                    child: Column(
+                      children: const [
+                        Text('Prediction Run'),
+                        Text(
+                          'Best for 5k+/3.1mi runs',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
                     onPressed: () {
                       Navigator.push(
                         context,

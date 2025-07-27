@@ -103,8 +103,8 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
     final isTracking = ref.watch(trackingProvider);
     final unitLabel = distanceUnit == DistanceUnit.kilometers ? 'km' : 'mi';
     final distances = distanceUnit == DistanceUnit.kilometers
-        ? [1.0, 5.0, 10.0, 21.1, 42.2]
-        : [1.0, 3.1, 6.2, 13.1, 26.2];
+        ? [/*1.0,*/ 5.0, 10.0, 21.1, 42.2]
+        : [/*1.0,*/ 3.1, 6.2, 13.1, 26.2];
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -662,8 +662,44 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
                     final value = double.tryParse(controller.text);
 
                     if (value != null && value > 0 && value <= 999.99) {
-                      onSubmitted(controller.text);
-                      Navigator.pop(context);
+                      // Check if distance is below recommended minimum
+                      final distanceUnit = ref.read(distanceUnitProvider);
+                      final minRecommended =
+                          distanceUnit == DistanceUnit.kilometers ? 5.0 : 3.1;
+
+                      if (value < minRecommended) {
+                        // Show warning dialog first
+                        Navigator.pop(context); // Close current dialog
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text("⚠️ Short Distance Warning"),
+                            content: const Text(
+                              "This run-mode works best for medium-long runs (5k+).\n\nDo you want to continue anyway?",
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Cancel"),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(
+                                      context); // Close warning dialog
+                                  onSubmitted(controller
+                                      .text); // Proceed with selection
+                                },
+                                child: const Text("Continue Anyway"),
+                              ),
+                            ],
+                          ),
+                        );
+                      } else {
+                        // Distance is fine, proceed normally
+                        onSubmitted(controller.text);
+                        Navigator.pop(context);
+                      }
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -691,9 +727,10 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
     setState(() {
       selectedDistance = distance;
 
-      if (distance < 1.0) {
+      if (distance < 3.1) {
+        // Changed from 1.0 to 3.1 to handle custom distances under 5k
         minTime = 1;
-        maxTime = 15;
+        maxTime = 40; // Increased max time for distances under 5k
       } else {
         final times = _getDefaultTimesForCustomDistance(distance);
         minTime = times['min']!;
@@ -712,8 +749,8 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
     final distanceUnit = ref.watch(distanceUnitProvider);
 
     final List<Map<String, dynamic>> defaultDistances = [
-      {'distance': 1.0, 'min': 4.0, 'max': 15.0},
-      {'distance': 3.1, 'min': 12.0, 'max': 40.0},
+      // {'distance': 1.0, 'min': 4.0, 'max': 15.0}, // Commented out 1k/1mi
+      {'distance': 3.1, 'min': 12.0, 'max': 40.0}, // Now starts from 5k/3.1mi
       {'distance': 6.2, 'min': 26.0, 'max': 80.0},
       {'distance': 13.1, 'min': 57.0, 'max': 210.0},
       {'distance': 26.2, 'min': 120.0, 'max': 390.0},
@@ -730,6 +767,11 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
       if (distance >= current['distance'] && distance < next['distance']) {
         return {'min': current['min'], 'max': next['max']};
       }
+    }
+
+    // For custom distances below 5k/3.1mi, provide reasonable defaults
+    if (distance < 3.1) {
+      return {'min': 1.0, 'max': 40.0};
     }
 
     return {'min': 1.0, 'max': 390.0};

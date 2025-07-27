@@ -138,10 +138,10 @@ class _PaceBarState extends ConsumerState<PaceBar>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Pace Status Icon & Message
-          _buildPaceStatusIndicator(
-              normalizedPace, targetZoneStart, targetZoneEnd),
-          const SizedBox(height: 10.0),
+          // Pace Status Icon & Message - COMMENTED OUT
+          // _buildPaceStatusIndicator(
+          //     normalizedPace, targetZoneStart, targetZoneEnd),
+          // const SizedBox(height: 10.0),
           // Pace Bar
           Container(
             width: widget.width,
@@ -255,7 +255,8 @@ class _PaceBarState extends ConsumerState<PaceBar>
     double iconSize = 50.0;
 
     if (pace >= targetStart && pace <= targetEnd) {
-      iconColor = Colors.green;
+      iconColor = Colors
+          .black; // Changed from Colors.green to Colors.white for better visibility
       iconSize = 55.0; // Slightly larger when in perfect zone
     }
 

@@ -281,3 +281,23 @@ For help getting started with Flutter development, view the [online documentatio
 			4.		'Calculating wheel' for current pace
 			5.		Grace period in the beginning for pace calculation
 			6. 		UI/UX improvements
+
+
+7/25/27:
+	•	Performed small UI/UX Changes
+
+
+7/26/27:
+
+	•	No changes done, but I've realized a couple of things during the past few days:
+		•	I talked to ChatGPT about my pre-warming approach because I was unsure if that's the industry-standard; I came to the realization that this is just me over-engineering everything. Apparently, apps like Strava or Nike Run Club just add a "loading" sign. This is way more effective and error-proof.
+		•	For months I've been thinking about how the current pace automatically discards the rest of the run. I think this was another case of me over-engineering (or overthinking). Obviosuly the industry standard 'average pace' takes the whole run into account + the most recent changes.
+			•	I think I am going to use the average to show the answer to the question "given everything I've ran so far, how long am I going to take to finish my goal if I keep running the same?". This is a question I always ask myself mid-run and at least this tool would be useful to me.
+			•	Another run-mode I am thinking of is to have a speedometer. If the user wants to keep running at a certain pace, the app will notify them if they're off-track. There should be an easy way during the run to change this speed. I think of this like a treadmill but for outside (with buttons like ⬆, ⬇).
+
+	•	Updated To-Do List (Based on recent changes):
+		•	1.	Add play button during the current-run screen
+		•	2.	Move the logic to start user-location-fetching only in the current-run screen + add a "fetching location..." notification with a loading spinner.
+		•	3.	UI/UX improvements
+		•	4.	Outdoors Testing
+		•	5.	Launch?
