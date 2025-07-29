@@ -73,9 +73,9 @@ class _MapState extends ConsumerState<Map> {
           double speedInMph = getSpeedInMph();
           ref.read(speedProvider.notifier).state = speedInMph;
 
-          // Siempre agregar ubicación, pero solo calcular distancia en RUNNING
+          // SIEMPRE agregar ubicación (para mantener continuidad)
           if (ref.read(trackingProvider)) {
-            // Solo calcular distancia si está RUNNING
+            // Solo calcular distancia si el estado es RUNNING
             if (runState == RunState.running && _locations.isNotEmpty) {
               double additionalDistance = _calculateDistance(
                 _locations.last.latitude!,
@@ -90,12 +90,14 @@ class _MapState extends ConsumerState<Map> {
             _locations.add(currentLocation);
           }
 
-          // Siempre actualizar polyline y cámara (para mostrar movimiento en mapa)
-          LatLng newPoint =
-              LatLng(currentLocation.latitude!, currentLocation.longitude!);
-          _updatePolyline(newPoint);
+          // Solo actualizar polyline si el estado es RUNNING o PAUSED
+          if (runState == RunState.running || runState == RunState.paused) {
+            LatLng newPoint =
+                LatLng(currentLocation.latitude!, currentLocation.longitude!);
+            _updatePolyline(newPoint);
+          }
 
-          // Update camera
+          // Update camera (SIEMPRE para mostrar ubicación actual)
           if (mapController != null) {
             mapController!.animateCamera(
               CameraUpdate.newCameraPosition(

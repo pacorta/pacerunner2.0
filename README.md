@@ -301,3 +301,47 @@ For help getting started with Flutter development, view the [online documentatio
 		•	3.	UI/UX improvements
 		•	4.	Outdoors Testing
 		•	5.	Launch?
+
+
+7/28/25:
+
+	•	GPS Flow Redesign: Changed how GPS works to be more like other running apps (Strava, Nike Run Club) with a simple loading screen instead of trying to start GPS in the background.
+
+		• Moved GPS setup from pace selection to the running screen where it shows "Getting GPS signal..."
+		• Added proper run states: looking for GPS, ready to start, running, paused, and finished
+		• Shows clear loading screen while GPS connects instead of hiding it in the background
+		• Added 30-second timeout so users can start even if GPS is slow
+
+		Technical changes:
+		• Fixed run_state_provider.dart to handle the new flow properly
+		• Rebuilt current_run.dart to show different screens based on what the app is doing
+		• Cleaned up pace_selection.dart by removing GPS code that was causing problems
+		• Had to move GPS listener to build() method because of Flutter/Riverpod rules
+
+		Bug fixes:
+		• Fixed crashes when widgets close while GPS is still updating
+		• Made LocationService always stop GPS properly when leaving the running screen
+		• Added safety checks so the app doesn't crash when switching between screens
+		• Solved timing issues between GPS updates and app navigation
+
+		UI improvements:
+		• Clear "Getting GPS..." screen so users know what's happening
+		• Shows helpful hints if GPS takes longer than 15 seconds
+		• Only shows running features when GPS is actually ready
+		• Much clearer when the app is ready vs still setting up
+
+		Result: GPS now works like other running apps with clear loading states and no more random crashes.
+
+		Extras:
+		• Removed unnecessary snack bar notifications during the pace selection process.
+		• Allowed for more precise polyline marking by only allowing its mark to appear with the trigger of the start button (no more polyline marking when off-duty). Achieved this by adding an if statement with the run states.
+		• Small UI changes
+
+
+	•	Updated To-Do List for MVP:
+		•	1.	[√] Move GPS logic to current-run screen with loading state
+		•	2.		Organize the run modes ('predictive finish' and 'steady pace')
+		•	3.		Enable captureMapScreenshot() to show map summary at the end of the run. Also show the date/time. Maybe pace splits?
+		•	4.		UI/UX improvements (colors, fonts, layouts)
+		•	5.		Test the app outside
+		•	6.		Get ready to launch

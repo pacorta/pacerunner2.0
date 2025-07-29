@@ -255,8 +255,6 @@ class _PaceBarState extends ConsumerState<PaceBar>
     double iconSize = 50.0;
 
     if (pace >= targetStart && pace <= targetEnd) {
-      iconColor = Colors
-          .black; // Changed from Colors.green to Colors.white for better visibility
       iconSize = 55.0; // Slightly larger when in perfect zone
     }
 

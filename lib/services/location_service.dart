@@ -54,38 +54,43 @@ class LocationService {
       final locationData = await _location.getLocation();
       print('LocationService: Initial location acquired');
 
-      // Update GPS status if ref is available
-      if (_ref != null) {
-        final gpsStatus = determineGPSStatus(locationData.accuracy);
-        _ref!.read(gpsStatusProvider.notifier).state = gpsStatus;
-      }
+      // Try-catch para GPS status update
+      _updateGPSStatusSafely(locationData.accuracy);
 
       // Start listening to location changes
       _locationSubscription = _location.onLocationChanged.listen(
         (LocationData currentLocation) {
-          // Update GPS status
-          if (_ref != null) {
-            final gpsStatus = determineGPSStatus(currentLocation.accuracy);
-            _ref!.read(gpsStatusProvider.notifier).state = gpsStatus;
-          }
+          // Try-catch para GPS status update
+          _updateGPSStatusSafely(currentLocation.accuracy);
 
-          // Broadcast location to listeners
+          // Add to stream
           _locationController.add(currentLocation);
         },
         onError: (error) {
-          print('LocationService: Error - $error');
+          print('LocationService: Location stream error: $error');
         },
       );
-
-      // Configure location settings
-      await _location.changeSettings(accuracy: LocationAccuracy.high);
 
       _isInitialized = true;
       print('LocationService: Successfully initialized');
       return true;
     } catch (e) {
-      print('LocationService: Error starting tracking - $e');
+      print('LocationService: Error starting location tracking: $e');
       return false;
+    }
+  }
+
+  //Update GPS status con try-catch
+  static void _updateGPSStatusSafely(double? accuracy) {
+    if (_ref != null) {
+      try {
+        final gpsStatus = determineGPSStatus(accuracy);
+        _ref!.read(gpsStatusProvider.notifier).state = gpsStatus;
+      } catch (e) {
+        // Widget disposed, ignore GPS updates
+        print(
+            'LocationService: GPS status update failed (widget disposed): $e');
+      }
     }
   }
 
@@ -93,23 +98,26 @@ class LocationService {
   static void stopLocationTracking() {
     print('LocationService: Stopping location tracking...');
 
+    // Cancel subscription
     _locationSubscription?.cancel();
     _locationSubscription = null;
-    _isInitialized = false;
 
-    // Try-catch around ref usage
-    try {
-      // Reset GPS status to acquiring
-      if (_ref != null) {
+    //Try-catch para final GPS status update
+    if (_ref != null) {
+      try {
         _ref!.read(gpsStatusProvider.notifier).state = GPSStatus.acquiring;
+      } catch (e) {
+        // Widget disposed, ignore
+        print(
+            'LocationService: Final GPS status update failed (widget disposed): $e');
       }
-    } catch (e) {
-      // Widget was disposed, ref is no longer valid - that's OK
-      print(
-          'LocationService: Could not update GPS status (widget disposed) - $e');
     }
 
-    print('LocationService: Location tracking stopped');
+    // Reset state
+    _isInitialized = false;
+    _ref = null;
+
+    print('LocationService: Stopped');
   }
 
   // Cleanup completo
