@@ -65,7 +65,7 @@ dev_dependencies:
 flutter_icons:
   android: true
   ios: true
-  image_path: "images/icon3.png"
+  image_path: "images/pacebud-icon.png"
 
 # The following section is specific to Flutter packages.
 flutter:
@@ -89,6 +89,14 @@ flutter:
     - images/login_screen.png
     - images/login3.png
     - images/google.png
+    - images/pacebud-closed-head-logo.png
+    - images/pacebud-open-head-logo.png
+    - images/pacebud-dark-text-logo.png
+    - images/pacebud-white-text-logo.png
+    - images/pacebud-icon.png
+    - images/pacebud-horizontal-white.png
+    - images/pacebud-horizontal-dark.png
+    - images/powered-by.png
     - .env
 
   #   - images/a_dot_ham.jpeg

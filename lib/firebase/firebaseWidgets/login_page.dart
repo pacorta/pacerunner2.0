@@ -23,9 +23,13 @@ class _LoginPageState extends State<LoginPage> {
           // Background image
           Container(
             decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('images/login3.png'),
-                fit: BoxFit.cover,
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  Color.fromRGBO(255, 87, 87, 1.0),
+                  Color.fromRGBO(140, 82, 255, 1.0),
+                ],
               ),
             ),
           ),
@@ -48,6 +52,7 @@ class _LoginPageState extends State<LoginPage> {
                     _buildCreateAccountButton(),
                     const SizedBox(height: 16),
                     */
+                    Image.asset('images/pacebud-dark-text-logo.png'),
                     _buildGoogleSignInButton(),
                   ],
                 ),

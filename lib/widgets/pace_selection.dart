@@ -15,6 +15,7 @@ import 'tracking_provider.dart';
 import 'distance_provider.dart';
 
 import 'current_run.dart';
+import 'readable_pace_provider.dart';
 
 /*
 import 'package:untitled/widgets/distance_unit_provider.dart';
@@ -79,6 +80,8 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
+        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: const Color.fromARGB(255, 18, 36, 83),
         title: const Text(
           'Plan Your Run',
           style: TextStyle(
@@ -87,7 +90,6 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
           ),
         ),
         centerTitle: true,
-        backgroundColor: const Color.fromARGB(255, 211, 118, 72),
         elevation: 0,
       ),
       body: Container(
@@ -96,8 +98,8 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color.fromARGB(255, 230, 61, 42),
-              Color.fromARGB(255, 211, 118, 72),
+              Color.fromRGBO(140, 82, 255, 1.0),
+              Color.fromRGBO(255, 87, 87, 1.0),
             ],
           ),
         ),
@@ -114,7 +116,7 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
                 children: [
                   if (!isDistanceConfirmed) ...[
                     _buildStepIndicator('STEP 1', 'Select Distance'),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 40),
                     _buildSelectedGoalCards(),
                     const SizedBox(height: 20),
                     _buildButtonWrap(distances.map((d) {
@@ -135,11 +137,11 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
                   ],
                   if (isDistanceConfirmed && !isTimeConfirmed) ...[
                     _buildStepIndicator('STEP 2', 'Select Time'),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 40),
                     _buildSelectedGoalCards(),
                     const SizedBox(height: 20),
                     _buildTimeSlider(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 40),
                     _buildConfirmPaceButton(),
                   ],
                   if (isDistanceConfirmed && isTimeConfirmed) ...[
@@ -177,7 +179,7 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
             });
           },
         ),
-        _buildSelectedText("Selected time: ${_formatTime(selectedTime)}"),
+        //_buildSelectedText("Selected time: ${_formatTime(selectedTime)}"),
       ],
     );
   }
@@ -420,8 +422,8 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
     return Center(
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color.fromARGB(71, 255, 255, 255)
-              .withOpacity(0.9), // Orange tone
+          backgroundColor:
+              const Color.fromARGB(71, 255, 255, 255).withOpacity(0.9),
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12), // Rounded corners
@@ -464,7 +466,8 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
     return Center(
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.orangeAccent.withOpacity(0.9), // Orange tone
+          backgroundColor:
+              const Color.fromARGB(71, 255, 255, 255).withOpacity(0.9),
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12), // Rounded corners
@@ -481,6 +484,12 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
             double selectedPaceInSeconds =
                 (selectedTime * 60) / normalizedDistance;
             ref.read(customPaceProvider.notifier).state = selectedPaceInSeconds;
+
+            //Guardar el formato legible
+            String readablePace = formatPaceAsReadable(
+                selectedDistance!, selectedTime, distanceUnit);
+            ref.read(readablePaceProvider.notifier).state = readablePace;
+
             setState(() {
               isTimeConfirmed = true;
             });
@@ -488,6 +497,7 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
                 distanceUnit == DistanceUnit.kilometers ? 'km' : 'mi';
             print(
                 'Pace of: ${selectedPaceInSeconds.toStringAsFixed(2)} sec/$unitLabel confirmed!');
+            print('Readable pace: $readablePace'); // Debug
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -499,7 +509,7 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
         child: const Text(
           'Confirm Time',
           style: TextStyle(
-            color: Colors.white,
+            color: Color.fromARGB(255, 0, 0, 0),
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
@@ -555,11 +565,13 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
   }
 
   Widget _buildButtonWrap(List<Widget> buttons) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      alignment: WrapAlignment.center, // Center the buttons for better look
-      children: buttons,
+    return Center(
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        alignment: WrapAlignment.center,
+        children: buttons,
+      ),
     );
   }
 
@@ -569,7 +581,7 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
         backgroundColor: isSelected ? Colors.white : const Color(0xFFFEE1DC),
-        foregroundColor: isSelected ? const Color(0xFFEC6D5E) : Colors.black87,
+        foregroundColor: isSelected ? appColors['background'] : Colors.black87,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
         ),
@@ -685,7 +697,8 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
         maxTime = times['max']!;
       }
 
-      selectedTime = minTime;
+      // Start with the middle of the range
+      selectedTime = minTime + (maxTime - minTime) / 2;
     });
   }
 
@@ -729,8 +742,8 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
 // Application-wide color scheme definition using a HashMap for consistent theming
 // and easy maintenance. Colors are optimized for accessibility and visual appeal.
 final appColors = {
-  'background': const Color(0xFFEC6D5E), // Coral/salmon
-  'cardBackground': const Color(0xFFFEE1DC), // Light pink/peach
+  'background': const Color.fromRGBO(255, 87, 87, 1.0),
+  'cardBackground': const Color.fromRGBO(140, 82, 255, 1.0),
   'textPrimary': Colors.white,
   'textSecondary': Colors.black87,
   'accent': Colors.white,

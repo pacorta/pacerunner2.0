@@ -8,6 +8,7 @@ import 'distance_provider.dart';
 import 'tracking_provider.dart';
 import 'speed_provider.dart';
 import 'run_state_provider.dart';
+import 'map_controller_provider.dart';
 import '../services/location_service.dart';
 import 'dart:math' as math;
 
@@ -88,6 +89,8 @@ class _MapState extends ConsumerState<Map> {
 
             // SIEMPRE agregar ubicación (para mantener continuidad)
             _locations.add(currentLocation);
+            // Actualizar provider para compartir con current_run.dart
+            ref.read(locationsProvider.notifier).state = [..._locations];
           }
 
           // Solo actualizar polyline si el estado es RUNNING o PAUSED
@@ -117,6 +120,15 @@ class _MapState extends ConsumerState<Map> {
   void _cleanupLocationTracking() {
     _locations.clear(); // Clears stored location history
     polylineCoordinates.clear(); // Clears the route line on the map
+
+    // limpiar providers con try-catch
+    try {
+      ref.read(locationsProvider.notifier).state = [];
+      ref.read(polylineCoordinatesProvider.notifier).state = [];
+    } catch (e) {
+      // Widget disposed, ignorar
+      print('Map: cleanup() - Provider cleanup failed (widget disposed): $e');
+    }
   }
 
   @override
@@ -124,11 +136,22 @@ class _MapState extends ConsumerState<Map> {
     //Cancel LocationService subscription instead of own subscription
     _locationServiceSubscription?.cancel();
     mapController?.dispose();
+
+    // limpiar provider con try-catch para evitar crashes
+    try {
+      ref.read(mapControllerProvider.notifier).state = null;
+    } catch (e) {
+      // Widget disposed, ignorar
+      print('Map: dispose() - Provider cleanup failed (widget disposed): $e');
+    }
+
     super.dispose();
   }
 
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
+    // actualizar provider para compartir con current_run.dart
+    ref.read(mapControllerProvider.notifier).state = controller;
   }
 
   void _updatePolyline(LatLng newPoint) {
@@ -136,6 +159,10 @@ class _MapState extends ConsumerState<Map> {
       setState(() {
         polylineCoordinates.add(newPoint);
       });
+      // actualizar provider para compartir con current_run.dart
+      ref.read(polylineCoordinatesProvider.notifier).state = [
+        ...polylineCoordinates
+      ];
     }
   }
 

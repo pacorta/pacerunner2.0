@@ -345,3 +345,35 @@ For help getting started with Flutter development, view the [online documentatio
 		•	4.		UI/UX improvements (colors, fonts, layouts)
 		•	5.		Test the app outside
 		•	6.		Get ready to launch
+
+
+3/3/2025:
+
+	•	Added complete polyline route image at the end of the run and made some UI changes.
+
+	•	Introduced a screenshot of the route at the end of the run. It's a fun feature and I want to expand on it more by saving this screenshot to the firebase data; but I think I will save this for V2, not for the MVP. Used 
+	•	Used 
+	•	Added the date/time of when the run was started to the run data.
+	•	Played around with the UI in the Activities screen. I think I'm finding the right colors for this app.
+
+	•	Major UI/UX Overhaul:
+		•	Added new app logo to home and login screens
+		•	Redesigned Activities screen with modern card layout, placeholder action buttons for later updates (info/share), and bottom navigation
+		•	Improved Current Run screen with readable pace header, better stats layout, and conditional PaceBar display
+		•	Improved Pace Selection with better button layout and legible goal summaries
+
+	•	Technical Improvements:
+		•	Added new Riverpod providers for map controller, locations, and readable pace state management
+		•	Improved error handling and cleanup logic across widgets
+		•	Refactored state management for better modularity and testability
+
+	• 	In the next updates:
+		• I am going to improve the UI of the summary dialog at the end of the run. I need to keep in mind that, in a later update, I want to copy this into the user's clipboard automatically. The purpose is for them to share it on their social media accounts.
+		• I am planning to stabilize the average pace. I'm lookin into how popular apps do this. The goal is to not have jumpy data.
+		• I will then start with run mode 1 ("Goal focused run").
+		• Then, run mode 2 ("Stable pace mode")
+		• After that, run mode 3 ("Classic Run")
+
+	• Each of these tasks will come with their own struggles, but I think after finishing these properly I'm ready to launch the MVP.
+
+	No real issues were encountered here.

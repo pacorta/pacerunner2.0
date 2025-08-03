@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:untitled/widgets/elapsed_time_provider.dart';
 import 'dart:async';
+import 'dart:typed_data';
 import 'map.dart';
 import 'tracking_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import 'distance_provider.dart';
 import 'average_pace_provider.dart';
 import 'current_pace_provider.dart';
 import 'pace_bar.dart';
+import 'map_controller_provider.dart';
 
 import '../firebase/firebaseWidgets/running_stats.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -18,6 +20,9 @@ import 'current_pace_in_seconds_provider.dart';
 import 'gps_indicator.dart';
 import 'run_state_provider.dart';
 import 'pausable_timer_provider.dart';
+import 'readable_pace_provider.dart';
+import 'custom_pace_provider.dart';
+import 'custom_distance_provider.dart';
 
 import '../services/location_service.dart';
 import 'gps_status_provider.dart';
@@ -32,7 +37,7 @@ class CurrentRun extends ConsumerStatefulWidget {
 class _CurrentRunState extends ConsumerState<CurrentRun> {
   Timer? _gpsTimeoutTimer;
   bool _hasTransitioned = false; //Para evitar transiciones múltiples
-  bool _runCompleted = false; //Flag para trackear si run fue completado
+  DateTime? _runStartTime;
 
   @override
   void initState() {
@@ -65,23 +70,6 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     }
   }
 
-  // Listener para cambios de GPS
-  void _setupGPSListener() {
-    // Escuchar cambios en GPS status
-    ref.listen(gpsStatusProvider, (previous, next) {
-      final currentState = ref.read(runStateProvider);
-
-      // Solo transicionar si estamos en fetchingGPS
-      if (currentState == RunState.fetchingGPS) {
-        if (next == GPSStatus.good || next == GPSStatus.strong) {
-          print('CurrentRun: GPS ready, transitioning to readyToStart');
-          ref.read(runStateProvider.notifier).state = RunState.readyToStart;
-          _gpsTimeoutTimer?.cancel(); // Cancelar timeout
-        }
-      }
-    });
-  }
-
   // Timeout de GPS (30 segundos)
   void _setupGPSTimeout() {
     _gpsTimeoutTimer = Timer(Duration(seconds: 30), () {
@@ -99,13 +87,14 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
       SnackBar(
         content:
             Text('GPS not available. You can start without precise location.'),
-        backgroundColor: Colors.orange,
+        backgroundColor: const Color(0xFFFFB6C1),
       ),
     );
   }
 
   // Empezar run
   void _startRun() {
+    _runStartTime = DateTime.now(); // ← CAPTURAR HORA DE INICIO
     print('CurrentRun: Starting run...');
     ref.read(runStateProvider.notifier).state = RunState.running;
     ref.read(pausableTimerProvider.notifier).start();
@@ -138,30 +127,50 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     ref.read(runStateProvider.notifier).state = RunState.running;
   }
 
-  void _endRun() {
-    // marcar como completado antes de hacer cualquier cosa
-    _runCompleted = true;
+  void _endRun() async {
+    // Paso 1: Parar GPS DIRECTAMENTE (sin activar cleanup en map.dart)
+    LocationService.stopLocationTracking();
+    print('CurrentRun: GPS service stopped directly before screenshot');
 
-    // Paso 1: Capturar datos antes de resetear
+    // Paso 2: Capturar screenshot (datos aún disponibles)
+    Uint8List? mapSnapshot;
+    try {
+      final mapController = ref.read(mapControllerProvider);
+      final locations = ref.read(locationsProvider);
+
+      if (mapController != null && locations.isNotEmpty) {
+        print('CurrentRun: Capturing map screenshot...');
+        mapSnapshot = await captureMapScreenshot(mapController, locations);
+      } else {
+        print('CurrentRun: No map controller or locations for screenshot');
+      }
+    } catch (e) {
+      print('CurrentRun: Error capturing map screenshot: $e');
+    }
+
+    // Paso 3: AHORA SÍ activar cleanup normal
+    ref.read(trackingProvider.notifier).state = false;
+    print('CurrentRun: Tracking stopped, cleanup activated');
+
+    // Paso 4: Capturar datos antes de resetear
     String distanceString = ref.read(formattedDistanceProvider).split(' ')[0];
     double distance = double.tryParse(distanceString) ?? 0.0;
     String distanceUnitString = ref.read(formattedUnitString);
     final finalTime = ref.read(formattedElapsedTimeProvider);
     final finalPace = ref.read(averagePaceProvider);
 
-    // Paso 2: Ahora sí, resetear cronómetro y cambiar estado
+    // Paso 5: Ahora si reseteamos el cronómetro y cambiamos el estado
     ref.read(pausableTimerProvider.notifier).stop();
     ref.read(runStateProvider.notifier).state = RunState.finished;
 
-    // Paso 3: Para el tracking GPS inmediatamente
-    ref.read(trackingProvider.notifier).state = false;
-
-    // Paso 4: Usar los datos capturados (que YA tienen los valores correctos)
+    // Paso 6: Usar los datos capturados (que YA tienen los valores correctos)
     final runData = {
       'distance': distance,
       'distanceUnitString': distanceUnitString,
       'time': finalTime, // Ya tiene el tiempo correcto
       'averagePace': finalPace, // Ya tiene el pace correcto
+      'startTime': _runStartTime?.toIso8601String(),
+      'date': _runStartTime?.toString().split(' ')[0],
       'timestamp': FieldValue.serverTimestamp(),
     };
 
@@ -171,10 +180,68 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('Run Completed'),
-        content: Text(
-          'Run Time: $finalTime\n'
-          'Traveled Distance: $distance $distanceUnitString\n'
-          'Average Pace: $finalPace',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // mostrar screenshot del mapa (si es que existe)
+            if (mapSnapshot != null) ...[
+              Container(
+                height: 200,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.memory(
+                    mapSnapshot,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      print('Error displaying map image: $error');
+                      return Container(
+                        color: Colors.grey.shade200,
+                        child: const Center(
+                          child: Text('Map preview unavailable'),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            // Stats del run
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Fecha y hora
+                Text(
+                  'Date: ${_runStartTime?.toString().split(' ')[0] ?? 'Unknown'}',
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                Text(
+                  'Time: ${_runStartTime != null ? TimeOfDay.fromDateTime(_runStartTime!).format(context) : 'Unknown'}',
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                const SizedBox(height: 12),
+                // Stats principales
+                Text(
+                  'Run Time: $finalTime\n'
+                  'Traveled Distance: $distance $distanceUnitString\n'
+                  'Average Pace: $finalPace',
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ],
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -220,7 +287,6 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
   @override
   Widget build(BuildContext context) {
     final runState = ref.watch(runStateProvider);
-    final gpsStatus = ref.watch(gpsStatusProvider); // Watch GPS status
 
     // GPS listener DENTRO del build method
     ref.listen(gpsStatusProvider, (previous, next) {
@@ -239,157 +305,235 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
 
     final elapsedTime = ref.watch(formattedElapsedTimeProvider);
     final distance = ref.watch(formattedDistanceProvider);
-    final currentPace = ref.watch(currentPaceProvider);
     final averagePace = ref.watch(averagePaceProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Current Run'),
-        automaticallyImplyLeading: false,
-      ),
       body: Container(
         decoration: const BoxDecoration(
-          color: Color(0xFF1C1C1E),
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              Color.fromRGBO(140, 82, 255, 1.0),
+              Color.fromRGBO(255, 87, 87, 1.0),
+            ],
+          ),
         ),
-        child: Column(
-          children: [
-            // CONDICIONAL: Solo mostrar mapa y datos cuando GPS esté listo
-            if (runState != RunState.fetchingGPS) ...[
-              // Mapa (solo cuando no estamos buscando GPS)
-              Expanded(
-                flex: 3,
-                child: const Map(),
-              ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // HEADER SECTION - Siempre visible
+              _buildHeaderSection(runState),
 
-              // Datos del run (solo cuando tenemos GPS)
-              Container(
-                color: const Color(0xFF1C1C1E),
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    // Solo mostrar PaceBar cuando run está activo
-                    if (runState == RunState.running ||
-                        runState == RunState.paused) ...[
-                      PaceBar(
-                        width: MediaQuery.of(context).size.width * 0.85,
-                        height: 60.0,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Current pace y distancia
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
+              // MAIN CONTENT SECTION
+              if (runState == RunState.fetchingGPS) ...[
+                // UI especial para cuando estamos buscando GPS
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // GPS Status Indicator
+                        Container(
+                          padding: EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: GPSIndicator(),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        SizedBox(height: 40),
+
+                        // Loading animation
+                        CircularProgressIndicator(
+                          color: const Color(0xFFFFB6C1),
+                          strokeWidth: 3,
+                        ),
+                        SizedBox(height: 20),
+
+                        // Mensaje explicativo
+                        Text(
+                          'Getting GPS signal...',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Please wait while we locate you',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ] else ...[
+                // MAPA - Más pequeño
+                Container(
+                  height:
+                      MediaQuery.of(context).size.height * 0.3, // 30% de altura
+                  child: const Map(),
+                ),
+
+                // DATOS DEL RUN - Siempre visibles
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        // Tiempo transcurrido - Grande
+                        Text(
+                          elapsedTime,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+
+                        // Etiqueta de tiempo
+                        Text(
+                          'time',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+
+                        SizedBox(height: 24),
+
+                        // Distancia y Pace en fila
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
+                            // Distancia
                             Column(
                               children: [
                                 Text(
-                                  'Current Pace',
+                                  distance.split(' ')[0], // Solo el número
                                   style: TextStyle(
-                                      color: Colors.white70, fontSize: 12),
+                                    color: Colors.white,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 Text(
-                                  currentPace,
+                                  'distance (${distance.split(' ').length > 1 ? distance.split(' ')[1] : 'km'})',
                                   style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ],
                             ),
+
+                            // Average Pace
                             Column(
                               children: [
                                 Text(
-                                  'Distance',
+                                  averagePace.split(
+                                      '/')[0], // Solo el tiempo antes del /
                                   style: TextStyle(
-                                      color: Colors.white70, fontSize: 12),
+                                    color: Colors.white,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 Text(
-                                  distance,
+                                  'avg pace',
                                   style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ],
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
 
-                    // CONDICIONAL: Botones que cambian según el estado
-                    _buildControlButtons(runState),
-                  ],
-                ),
-              ),
-            ],
+                        SizedBox(height: 32),
 
-            // UI especial para cuando estamos buscando GPS
-            if (runState == RunState.fetchingGPS) ...[
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // GPS Status Indicator
-                      Container(
-                        padding: EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: GPSIndicator(), // Muestra el status del GPS
-                      ),
-                      SizedBox(height: 40),
+                        // PaceBar - Solo cuando run está activo Y hay target pace
+                        _buildPaceBarSection(runState),
 
-                      // Loading animation
-                      CircularProgressIndicator(
-                        color: Colors.orange,
-                        strokeWidth: 3,
-                      ),
-                      SizedBox(height: 20),
+                        Spacer(),
 
-                      // Mensaje explicativo
-                      Text(
-                        'Getting GPS signal...',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Please wait while we locate you',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
-                      ),
-
-                      // Debug info (temporal)
-                      SizedBox(height: 20),
-                      Text(
-                        'GPS Status: ${gpsStatus.toString()}',
-                        style: TextStyle(color: Colors.yellow, fontSize: 12),
-                      ),
-                    ],
+                        // Botones de control
+                        _buildControlButtons(runState),
+                      ],
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  // Header section con información del run y GPS indicator
+  Widget _buildHeaderSection(RunState runState) {
+    final readablePace = ref.watch(readablePaceProvider);
+
+    // Usar el formato guardado si está disponible, sino usar texto por defecto
+    String headerText = readablePace.isNotEmpty ? readablePace : "Current Run";
+
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      child: Stack(
+        children: [
+          // Texto central del header
+          Center(
+            child: Text(
+              headerText,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+
+          // GPS Indicator en esquina superior derecha
+          Positioned(
+            top: 0,
+            right: 0,
+            child: GPSIndicator(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Sección del PaceBar
+  Widget _buildPaceBarSection(RunState runState) {
+    final customPace = ref.watch(customPaceProvider);
+    final customDistance = ref.watch(customDistanceProvider);
+
+    // Solo mostrar PaceBar si hay target pace configurado y el run está activo
+    if (customPace != null &&
+        customDistance != null &&
+        (runState == RunState.running || runState == RunState.paused)) {
+      return Column(
+        children: [
+          PaceBar(
+            width: MediaQuery.of(context).size.width * 0.85,
+            height: 60.0,
+          ),
+          SizedBox(height: 16),
+        ],
+      );
+    }
+
+    return SizedBox.shrink(); // No mostrar nada si no hay target pace
   }
 
   // Botones que cambian según el estado del run
@@ -398,7 +542,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
       case RunState.fetchingGPS:
         return Column(
           children: [
-            CircularProgressIndicator(color: Colors.orange),
+            CircularProgressIndicator(color: const Color(0xFFFFB6C1)),
             SizedBox(height: 16),
             Text(
               'Getting GPS signal...',
@@ -434,7 +578,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
               child: ElevatedButton(
                 onPressed: _pauseRun,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
+                  backgroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30)),
                   minimumSize: const Size(double.infinity, 50),
@@ -442,10 +586,10 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.pause, color: Colors.white),
+                    Icon(Icons.pause, color: Colors.black),
                     SizedBox(width: 8),
                     Text('PAUSE',
-                        style: TextStyle(fontSize: 18, color: Colors.white)),
+                        style: TextStyle(fontSize: 18, color: Colors.black)),
                   ],
                 ),
               ),

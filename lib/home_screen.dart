@@ -29,38 +29,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          automaticallyImplyLeading: false,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: () async {
-                await FirebaseAuth.instance.signOut();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AuthWrapper()),
-                );
-              },
-            )
-          ],
-        ),
         body: Container(
           alignment: Alignment.bottomCenter,
           padding: const EdgeInsets.all(30),
           decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('images/pacerunner6.png'),
-              fit: BoxFit.cover,
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                Color.fromRGBO(140, 82, 255, 1.0),
+                Color.fromRGBO(255, 87, 87, 1.0),
+              ],
             ),
           ),
           child: SingleChildScrollView(
             child: Column(
               children: <Widget>[
+                Image.asset('images/pacebud-dark-text-logo.png'),
+                const SizedBox(height: 10),
                 ElevatedButton(
                     child: Column(
                       children: const [
-                        Text('Prediction Run'),
+                        Text('Goal-focused Run'),
                         Text(
                           'Best for 5k+/3.1mi runs',
                           style: TextStyle(
@@ -86,6 +76,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         context,
                         MaterialPageRoute(
                             builder: (_) => const RunningStatsPage()),
+                      );
+                    }),
+
+                ElevatedButton(
+                    child: const Text('Logout'),
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const AuthWrapper()),
                       );
                     }),
                 const SizedBox(height: 100),
