@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:untitled/widgets/elapsed_time_provider.dart';
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'dart:convert';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'map.dart';
 import 'tracking_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +17,7 @@ import 'pace_bar.dart';
 import 'map_controller_provider.dart';
 
 import '../firebase/firebaseWidgets/running_stats.dart';
+import '../home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'distance_unit_as_string_provider.dart';
@@ -23,6 +28,7 @@ import 'pausable_timer_provider.dart';
 import 'readable_pace_provider.dart';
 import 'custom_pace_provider.dart';
 import 'custom_distance_provider.dart';
+import 'run_summary_card.dart';
 
 import '../services/location_service.dart';
 import 'gps_status_provider.dart';
@@ -38,6 +44,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
   Timer? _gpsTimeoutTimer;
   bool _hasTransitioned = false; //Para evitar transiciones múltiples
   DateTime? _runStartTime;
+  final GlobalKey _repaintBoundaryKey = GlobalKey();
 
   @override
   void initState() {
@@ -178,110 +185,258 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Run Completed'),
-        content: Column(
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // mostrar screenshot del mapa (si es que existe)
-            if (mapSnapshot != null) ...[
-              Container(
-                height: 200,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.memory(
-                    mapSnapshot,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      print('Error displaying map image: $error');
-                      return Container(
-                        color: Colors.grey.shade200,
-                        child: const Center(
-                          child: Text('Map preview unavailable'),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+            // RepaintBoundary wraps the card for future PNG export
+            RepaintBoundary(
+              key: _repaintBoundaryKey,
+              child: RunSummaryCard(
+                mapSnapshot: mapSnapshot,
+                distance: distance.toString(),
+                pace: finalPace,
+                time: finalTime,
+                distanceUnit: distanceUnitString,
               ),
-              const SizedBox(height: 16),
-            ],
-            // Stats del run
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Fecha y hora
-                Text(
-                  'Date: ${_runStartTime?.toString().split(' ')[0] ?? 'Unknown'}',
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-                Text(
-                  'Time: ${_runStartTime != null ? TimeOfDay.fromDateTime(_runStartTime!).format(context) : 'Unknown'}',
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-                const SizedBox(height: 12),
-                // Stats principales
-                Text(
-                  'Run Time: $finalTime\n'
-                  'Traveled Distance: $distance $distanceUnitString\n'
-                  'Average Pace: $finalPace',
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Buttons below the card (outside of RepaintBoundary)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                children: [
+                  // Save run button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        //(1) Reset Providers (tracking ya está en false)
+                        ref.read(distanceProvider.notifier).state = 0.0;
+                        ref.read(speedProvider.notifier).state = 0.0;
+                        ref.read(elapsedTimeProvider.notifier).state =
+                            '00:00:00';
+                        resetCurrentPaceInSecondsProvider();
+                        resetCurrentPaceProvider();
+
+                        //(2) Pop Dialog and Navigate to Running Stats Page
+                        Navigator.of(context).pop();
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                RunningStatsPage(newRunData: runData),
+                          ),
+                        );
+
+                        //(3) Save the run data to Firebase
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user != null) {
+                          FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(user.uid)
+                              .collection('runs')
+                              .add(runData)
+                              .then((_) {
+                            debugPrint('Run saved successfully');
+                          }).catchError((error) {
+                            debugPrint('Error saving run: $error');
+                          });
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                      child: const Text(
+                        'Save run',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Share run button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _copyToClipboard,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+
+                      /* child: Column(
+                      children: const [
+                        Text('Goal-focused Run'),
+                        Text(
+                          'Best for 5k+/3.1mi runs',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                      child: const Text(
+                        'Share run',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      */
+                      child: Column(
+                        children: [
+                          Text(
+                            'Share run',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            'Now is your only chance (sorry).',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white70,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Discard run button (smaller, red, discrete)
+                  TextButton(
+                    onPressed: () => _showDiscardConfirmation(context),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 16),
+                    ),
+                    child: const Text(
+                      'Discard run',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            child: const Text('OK'),
-            onPressed: () async {
-              //(1) Reset Providers (tracking ya está en false)
-              ref.read(distanceProvider.notifier).state = 0.0;
-              ref.read(speedProvider.notifier).state = 0.0;
-              ref.read(elapsedTimeProvider.notifier).state = '00:00:00';
-              resetCurrentPaceInSecondsProvider();
-              resetCurrentPaceProvider();
-
-              //(2) Pop Dialog and Navigate to Running Stats Page
-              Navigator.of(context).pop();
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => RunningStatsPage(newRunData: runData),
-                ),
-              );
-
-              //(3) Save the run data to Firebase
-              final user = FirebaseAuth.instance.currentUser;
-              if (user != null) {
-                FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(user.uid)
-                    .collection('runs')
-                    .add(runData)
-                    .then((_) {
-                  debugPrint('Run saved successfully');
-                }).catchError((error) {
-                  debugPrint('Error saving run: $error');
-                });
-              }
-            },
-          ),
-        ],
       ),
     );
+  }
+
+  // Discard confirmation dialog
+  void _showDiscardConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey.shade800,
+          title: const Text(
+            'Discard Run',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            'Are you sure you want to discard this run? This action cannot be undone.',
+            style: TextStyle(color: Colors.white),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close confirmation dialog
+                Navigator.of(context).pop(); // Close main dialog
+
+                // Reset providers without saving
+                ref.read(distanceProvider.notifier).state = 0.0;
+                ref.read(speedProvider.notifier).state = 0.0;
+                ref.read(elapsedTimeProvider.notifier).state = '00:00:00';
+                resetCurrentPaceInSecondsProvider();
+                resetCurrentPaceProvider();
+
+                // Navigate back to home screen
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const HomeScreen(),
+                  ),
+                );
+              },
+              child: const Text(
+                'Discard',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Copy run summary to clipboard as PNG
+  Future<void> _copyToClipboard() async {
+    try {
+      // Get the RepaintBoundary
+      RenderRepaintBoundary boundary = _repaintBoundaryKey.currentContext!
+          .findRenderObject() as RenderRepaintBoundary;
+
+      // Capture as image with high quality
+      ui.Image image = await boundary.toImage(pixelRatio: 2.0);
+
+      // Convert to PNG bytes
+      ByteData? byteData =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+      Uint8List pngBytes = byteData!.buffer.asUint8List();
+
+      // Copy to clipboard as base64 encoded image
+      await Clipboard.setData(ClipboardData(
+          text: "data:image/png;base64,${base64Encode(pngBytes)}"));
+
+      // Show confirmation
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Run summary copied to clipboard!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error copying to clipboard: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to copy image'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override

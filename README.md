@@ -347,7 +347,7 @@ For help getting started with Flutter development, view the [online documentatio
 		•	6.		Get ready to launch
 
 
-3/3/2025:
+8/2/2025:
 
 	•	Added complete polyline route image at the end of the run and made some UI changes.
 
@@ -377,3 +377,33 @@ For help getting started with Flutter development, view the [online documentatio
 	• Each of these tasks will come with their own struggles, but I think after finishing these properly I'm ready to launch the MVP.
 
 	No real issues were encountered here.
+
+
+8/3/2025:
+
+	Run Summary Dialog Redesign: Completely rebuilt the run completion dialog with a modern card-style design and added image export functionality for social media sharing.
+
+		• Created RunSummaryCard widget as a reusable component with dark semi-transparent background, compact map display, vertically stacked metrics, and integrated logo
+		• Implemented PNG export to clipboard using RepaintBoundary for widget-to-image conversion
+		• Redesigned button layout with three clear actions: Save run (preserves existing functionality), Share run (copies image to clipboard), and Discard run (with confirmation dialog)
+		• Added high-quality image generation with 2x pixel ratio and base64 encoding for universal app compatibility
+
+	• How this was achieved:
+		• RepaintBoundary wrapper around exportable content to separate interactive UI from image content
+		• Flutter's built-in rendering pipeline: Widget Tree → Render Tree → PNG conversion using dart:ui toImage() method
+		• GlobalKey system to access render objects for image capture without external dependencies
+		• Base64 encoding with data URI format for cross-platform clipboard compatibility
+
+	• Technical challenges solved:
+		• iOS simulator limitation: Clipboard shows base64 text instead of image (expected behavior, works properly on real devices)
+		• State management: Proper cleanup and provider reset logic maintained across all dialog actions
+		• Image quality: Implemented pixelRatio settings for Retina-quality exports
+		Error handling: Added comprehensive try-catch blocks with user feedback via SnackBar notifications
+
+	• Lessons learned:
+		• Flutter's widget architecture makes complex tasks like image export very simple with the right approach
+		• RepaintBoundary design pattern enables clean separation between exportable content and interactive elements
+		• Built-in APIs (dart:ui, dart:convert, flutter/services) provide strong solutions without external dependencies
+		• Widget-to-image conversion leverages GPU acceleration for high-performance rendering
+
+	Result: Users can now share professional-looking run summaries directly from the app to any platform, with the dialog matching modern design standards and maintaining all existing functionality.
