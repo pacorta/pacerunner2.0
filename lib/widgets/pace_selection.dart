@@ -662,11 +662,10 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
         onPressed: () {
           if (selectedDistance != null && selectedTime > 0) {
             final distanceUnit = ref.read(distanceUnitProvider);
-            double normalizedDistance = distanceUnit == DistanceUnit.kilometers
-                ? selectedDistance! / 1.60934
-                : selectedDistance!;
+            // Calculate pace in the correct unit (no conversion needed)
+            // For km: seconds/km, For miles: seconds/mile
             double selectedPaceInSeconds =
-                (selectedTime * 60) / normalizedDistance;
+                (selectedTime * 60) / selectedDistance!;
             ref.read(customPaceProvider.notifier).state = selectedPaceInSeconds;
 
             //Guardar el formato legible

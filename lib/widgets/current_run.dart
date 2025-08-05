@@ -11,7 +11,9 @@ import 'tracking_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'speed_provider.dart';
 import 'distance_provider.dart';
-import 'average_pace_provider.dart';
+import 'stable_average_pace_provider.dart';
+import 'projected_finish_provider.dart';
+import 'prediction_display.dart';
 import 'current_pace_provider.dart';
 import 'pace_bar.dart';
 import 'map_controller_provider.dart';
@@ -164,7 +166,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     double distance = double.tryParse(distanceString) ?? 0.0;
     String distanceUnitString = ref.read(formattedUnitString);
     final finalTime = ref.read(formattedElapsedTimeProvider);
-    final finalPace = ref.read(averagePaceProvider);
+    final finalPace = ref.read(stableAveragePaceProvider);
 
     // Paso 5: Ahora si reseteamos el cronómetro y cambiamos el estado
     ref.read(pausableTimerProvider.notifier).stop();
@@ -221,6 +223,8 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                             '00:00:00';
                         resetCurrentPaceInSecondsProvider();
                         resetCurrentPaceProvider();
+                        resetStableAveragePace(ref);
+                        resetPredictionProviders(ref);
 
                         //(2) Pop Dialog and Navigate to Running Stats Page
                         Navigator.of(context).pop();
@@ -377,6 +381,8 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                 ref.read(elapsedTimeProvider.notifier).state = '00:00:00';
                 resetCurrentPaceInSecondsProvider();
                 resetCurrentPaceProvider();
+                resetStableAveragePace(ref);
+                resetPredictionProviders(ref);
 
                 // Navigate back to home screen
                 Navigator.pushReplacement(
@@ -460,7 +466,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
 
     final elapsedTime = ref.watch(formattedElapsedTimeProvider);
     final distance = ref.watch(formattedDistanceProvider);
-    final averagePace = ref.watch(averagePaceProvider);
+    final averagePace = ref.watch(stableAveragePaceProvider);
 
     return Scaffold(
       body: Container(
@@ -612,10 +618,13 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                           ],
                         ),
 
-                        SizedBox(height: 32),
+                        SizedBox(height: 24),
 
                         // PaceBar - Solo cuando run está activo Y hay target pace
                         _buildPaceBarSection(runState),
+
+                        // Prediction Display - Solo cuando hay target pace
+                        _buildPredictionSection(runState),
 
                         Spacer(),
 
@@ -683,7 +692,27 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
             width: MediaQuery.of(context).size.width * 0.85,
             height: 60.0,
           ),
-          SizedBox(height: 16),
+          SizedBox(height: 8),
+        ],
+      );
+    }
+
+    return SizedBox.shrink(); // No mostrar nada si no hay target pace
+  }
+
+  // Seccion de Prediction Display
+  Widget _buildPredictionSection(RunState runState) {
+    final customPace = ref.watch(customPaceProvider);
+    final customDistance = ref.watch(customDistanceProvider);
+
+    // Solo mostrar prediction si hay target pace configurado y el run está activo
+    if (customPace != null &&
+        customDistance != null &&
+        (runState == RunState.running || runState == RunState.paused)) {
+      return Column(
+        children: [
+          PredictionDisplay(),
+          SizedBox(height: 8),
         ],
       );
     }
