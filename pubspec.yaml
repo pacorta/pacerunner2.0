@@ -97,6 +97,8 @@ flutter:
     - images/pacebud-horizontal-white.png
     - images/pacebud-horizontal-dark.png
     - images/powered-by.png
+    - images/bud.gif
+    - images/bud-pause.gif
     - .env
 
   #   - images/a_dot_ham.jpeg

@@ -4,6 +4,7 @@ import 'package:untitled/widgets/custom_distance_provider.dart';
 import 'package:untitled/widgets/custom_pace_provider.dart';
 import 'current_pace_in_seconds_provider.dart';
 import 'distance_unit_provider.dart';
+import 'run_state_provider.dart';
 import 'dart:math';
 
 import 'package:flutter/services.dart';
@@ -195,8 +196,8 @@ class _PaceBarState extends ConsumerState<PaceBar>
           ),
           const SizedBox(height: 10.0),
           // Motivational Message
-          _buildMotivationalMessage(
-              normalizedPace, targetZoneStart, targetZoneEnd),
+          /*_buildMotivationalMessage(
+              normalizedPace, targetZoneStart, targetZoneEnd),*/
         ],
       ),
     );
@@ -251,19 +252,23 @@ class _PaceBarState extends ConsumerState<PaceBar>
   }
 
   Widget _buildRunnerIcon(double pace, double targetStart, double targetEnd) {
-    Color iconColor = Colors.black;
     double iconSize = 50.0;
 
     if (pace >= targetStart && pace <= targetEnd) {
       iconSize = 55.0; // Slightly larger when in perfect zone
     }
 
+    // Check if the run is paused
+    final runState = ref.watch(runStateProvider);
+    final isPaused = runState == RunState.paused;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
-      child: Icon(
-        Icons.directions_run,
-        size: iconSize,
-        color: iconColor,
+      child: Image.asset(
+        isPaused ? 'images/bud-pause.gif' : 'images/bud.gif',
+        width: iconSize,
+        height: iconSize,
+        fit: BoxFit.contain,
       ),
     );
   }
@@ -276,10 +281,10 @@ class _PaceBarState extends ConsumerState<PaceBar>
 
     if (pace < targetStart) {
       if (pace < targetStart * 0.5) {
-        message = "Pick up the pace! You've got this!";
+        message = "Speed up";
         messageIcon = Icons.directions_run;
       } else {
-        message = "Push a little harder!";
+        message = "A little faster";
         messageIcon = Icons.trending_up;
       }
       messageColor = const Color.fromARGB(255, 0, 0, 0);
@@ -288,16 +293,16 @@ class _PaceBarState extends ConsumerState<PaceBar>
         message = "Slow down a little";
         messageIcon = Icons.warning;
       } else {
-        message = "Ease off slightly";
+        message = "Relax";
         messageIcon = Icons.trending_down;
       }
       messageColor = const Color.fromARGB(255, 0, 0, 0);
     } else {
-      message = "Perfect pace!";
+      message = "Perfect pace";
       messageIcon = Icons.stars;
       messageColor = const Color.fromARGB(255, 0, 0, 0);
     }
-
+    //I'm just going to use the display messages during production, later on they'll be haptic feedback or sound effects.
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

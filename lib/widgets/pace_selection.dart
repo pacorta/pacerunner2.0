@@ -116,7 +116,7 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
                 children: [
                   if (!isDistanceConfirmed) ...[
                     _buildStepIndicator('STEP 1', 'Select Distance'),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 10),
                     _buildSelectedGoalCards(),
                     const SizedBox(height: 20),
                     _buildButtonWrap(distances.map((d) {
@@ -137,7 +137,7 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
                   ],
                   if (isDistanceConfirmed && !isTimeConfirmed) ...[
                     _buildStepIndicator('STEP 2', 'Select Time'),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 10),
                     _buildSelectedGoalCards(),
                     const SizedBox(height: 20),
                     _buildTimeSlider(),
@@ -160,28 +160,212 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
     );
   }
 
-  // Implements an adaptive time selection slider that automatically adjusts its range
+  // Implements a numeric keypad for time selection that allows precise input
   // based on the selected distance. Provides real-time feedback with formatted time display.
   Widget _buildTimeSlider() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const SizedBox(height: 10),
-        Slider(
-          value: selectedTime,
-          min: minTime,
-          max: maxTime,
-          divisions: (maxTime - minTime).toInt(),
-          label: _formatTime(selectedTime),
-          onChanged: (value) {
-            setState(() {
-              selectedTime = value;
-            });
-          },
-        ),
-        //_buildSelectedText("Selected time: ${_formatTime(selectedTime)}"),
+        const SizedBox(height: 15),
+        // Numeric keypad
+        _buildNumericKeypad(),
       ],
     );
+  }
+
+  Widget _buildNumericKeypad() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Quick time buttons
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildQuickTimeButton('30 min', 30),
+              _buildQuickTimeButton('45 min', 45),
+              _buildQuickTimeButton('1h', 60),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildQuickTimeButton('1h 30m', 90),
+              _buildQuickTimeButton('2h', 120),
+              _buildQuickTimeButton('3h', 180),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // Custom time input with +/- buttons
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  final controller = TextEditingController();
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Enter Custom Time'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Enter time in minutes:'),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: controller,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              hintText: 'e.g., 75',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            final value = double.tryParse(controller.text);
+                            if (value != null &&
+                                value >= minTime &&
+                                value <= maxTime) {
+                              setState(() {
+                                selectedTime = value;
+                              });
+                              Navigator.pop(context);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Please enter a time between ${minTime.toInt()} and ${maxTime.toInt()} minutes'),
+                                ),
+                              );
+                            }
+                          },
+                          child: const Text('Confirm'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color.fromARGB(255, 140, 82, 255),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Custom'),
+              ),
+              const SizedBox(width: 20),
+              // Minus button
+              Container(
+                width: 50,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () => _adjustTime(-1),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[200],
+                    foregroundColor: Colors.black87,
+                    shape: const CircleBorder(),
+                    padding: EdgeInsets.zero,
+                    elevation: 2,
+                  ),
+                  child: const Icon(Icons.remove, size: 24),
+                ),
+              ),
+              const SizedBox(width: 20),
+              // Plus button
+              Container(
+                width: 50,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () => _adjustTime(1),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[200],
+                    foregroundColor: Colors.black87,
+                    shape: const CircleBorder(),
+                    padding: EdgeInsets.zero,
+                    elevation: 2,
+                  ),
+                  child: const Icon(Icons.add, size: 24),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickTimeButton(String label, double timeValue) {
+    final isSelected = (selectedTime - timeValue).abs() < 1.0;
+
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: isSelected
+                ? const Color.fromARGB(255, 140, 82, 255)
+                : Colors.grey[200],
+            foregroundColor: isSelected ? Colors.white : Colors.black87,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            elevation: isSelected ? 4 : 1,
+          ),
+          onPressed: () {
+            if (timeValue >= minTime && timeValue <= maxTime) {
+              setState(() {
+                selectedTime = timeValue;
+              });
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'Time must be between ${_formatTime(minTime)} and ${_formatTime(maxTime)}'),
+                ),
+              );
+            }
+          },
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Adjust time by the given amount (positive or negative)
+  void _adjustTime(int amount) {
+    final newTime = selectedTime + amount;
+    if (newTime >= minTime && newTime <= maxTime) {
+      setState(() {
+        selectedTime = newTime;
+      });
+    }
   }
 
   Widget _buildStepIndicator(String step, String title) {
@@ -260,13 +444,13 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
         padding: const EdgeInsets.all(16),
         height: 130,
         decoration: BoxDecoration(
-          color: const Color(0xFFFEE1DC),
-          borderRadius: BorderRadius.circular(24),
+          color: Colors.white.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
@@ -378,13 +562,14 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
     return Center(
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFFEC6D5E),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          backgroundColor: Colors.white.withOpacity(0.9),
+          foregroundColor: const Color.fromARGB(255, 140, 82, 255),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(15),
           ),
-          elevation: 0,
+          elevation: 4,
+          shadowColor: Colors.black.withOpacity(0.1),
         ),
         onPressed: () {
           // Solo navegación, sin GPS validation
@@ -422,14 +607,14 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
     return Center(
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor:
-              const Color.fromARGB(71, 255, 255, 255).withOpacity(0.9),
+          backgroundColor: Colors.white.withOpacity(0.9),
+          foregroundColor: const Color.fromARGB(255, 140, 82, 255),
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12), // Rounded corners
+            borderRadius: BorderRadius.circular(15),
           ),
-          shadowColor: Colors.black.withOpacity(0.1), // Subtle shadow
-          elevation: 4, // Slight elevation for depth
+          elevation: 4,
+          shadowColor: Colors.black.withOpacity(0.1),
         ),
         onPressed: () {
           if (selectedDistance != null) {
@@ -453,7 +638,6 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
         child: const Text(
           'Confirm Distance',
           style: TextStyle(
-            color: Color.fromARGB(255, 0, 0, 0),
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
@@ -466,14 +650,14 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
     return Center(
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor:
-              const Color.fromARGB(71, 255, 255, 255).withOpacity(0.9),
+          backgroundColor: Colors.white.withOpacity(0.9),
+          foregroundColor: const Color.fromARGB(255, 140, 82, 255),
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12), // Rounded corners
+            borderRadius: BorderRadius.circular(15),
           ),
-          shadowColor: Colors.black.withOpacity(0.1), // Subtle shadow
-          elevation: 4, // Slight elevation for depth
+          elevation: 4,
+          shadowColor: Colors.black.withOpacity(0.1),
         ),
         onPressed: () {
           if (selectedDistance != null && selectedTime > 0) {
@@ -509,7 +693,6 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
         child: const Text(
           'Confirm Time',
           style: TextStyle(
-            color: Color.fromARGB(255, 0, 0, 0),
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
@@ -580,12 +763,16 @@ class _PaceSelectionWidgetState extends ConsumerState<PaceSelectionWidget> {
 
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? Colors.white : const Color(0xFFFEE1DC),
-        foregroundColor: isSelected ? appColors['background'] : Colors.black87,
+        backgroundColor:
+            isSelected ? Colors.white : Colors.white.withOpacity(0.8),
+        foregroundColor: isSelected
+            ? const Color.fromARGB(255, 140, 82, 255)
+            : Colors.black87,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(15),
         ),
-        elevation: 0,
+        elevation: isSelected ? 4 : 2,
+        shadowColor: Colors.black.withOpacity(0.1),
       ),
       onPressed: () {
         _handleDistanceSelection(value);

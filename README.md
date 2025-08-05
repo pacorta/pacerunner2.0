@@ -407,3 +407,15 @@ For help getting started with Flutter development, view the [online documentatio
 		• Widget-to-image conversion leverages GPU acceleration for high-performance rendering
 
 	Result: Users can now share professional-looking run summaries directly from the app to any platform, with the dialog matching modern design standards and maintaining all existing functionality.
+
+
+8/4/2025:
+
+	UI changes:
+		• During the timing selection, I switched the slider for a numeric keyboard with suggestions (30 mins, 1 hr, etc.). Previous map I made for realistic timings work better with this approach.
+		• Consitent colored cards
+		• Switched the running-man-marker in the pacebar for a dog, given that the new logo has a dog. I added a conditional statement; if the run is paused, the dog will stay still wagging his tail.
+		• Removed motivational message display from pace bar (commented out for future haptic/sound implementation)
+		• Other minor changes
+	
+	Later on today I will start working on the stable average pace provider(task #1), this will help me predict the end time of the run (task #2), based on the run so far.

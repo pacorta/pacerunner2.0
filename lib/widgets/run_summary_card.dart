@@ -22,8 +22,7 @@ class RunSummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color:
-            Colors.black.withOpacity(0.8), // Dark semi-transparent background
+        color: Colors.black.withOpacity(0.8),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -59,7 +58,6 @@ class RunSummaryCard extends StatelessWidget {
             const SizedBox(height: 24),
           ],
 
-          // Metrics - stacked vertically and centered
           Column(
             children: [
               _buildMetric('Distance', '$distance $distanceUnit'),
@@ -93,7 +91,6 @@ class RunSummaryCard extends StatelessWidget {
   }
 
   Widget _buildMetric(String label, String value) {
-    // Format time if this is the Time metric (consistent with running_stats.dart)
     String displayValue = value;
     if (label == 'Time' && value.contains(':')) {
       displayValue = _formatRunTime(value);
