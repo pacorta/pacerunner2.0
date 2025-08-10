@@ -7,25 +7,7 @@ import 'distance_provider.dart';
 import 'distance_unit_provider.dart';
 import 'target_providers.dart';
 import 'stable_average_pace_provider.dart';
-
-// Helper function to convert stable average pace string to seconds per km
-double _parseStablePaceToSeconds(String paceString) {
-  if (paceString == "---" || paceString.isEmpty) {
-    return 0.0;
-  }
-
-  // Extract the time part (before the "/")
-  final timePart = paceString.split('/')[0];
-  final parts = timePart.split(':');
-
-  if (parts.length == 2) {
-    final minutes = int.tryParse(parts[0]) ?? 0;
-    final seconds = int.tryParse(parts[1]) ?? 0;
-    return (minutes * 60 + seconds).toDouble();
-  }
-
-  return 0.0;
-}
+import 'package:untitled/utils/pace_utils.dart';
 
 // Provider that calculates projected finish time and status
 final projectedFinishProvider = Provider<Map<String, String>>((ref) {
@@ -50,8 +32,21 @@ final projectedFinishProvider = Provider<Map<String, String>>((ref) {
     targetDistanceKm = targetDistance * 1.60934; // Convert miles to km
   }
 
-  // Use stable average pace instead of direct calculation
-  final stableAveragePacePerKm = _parseStablePaceToSeconds(stablePaceString);
+  // Parse stable average pace (seconds per selected unit) and normalize to sec/km
+  final paceSecondsPerUnit = parsePaceStringToSeconds(stablePaceString);
+  final stableAveragePacePerKm = unit == DistanceUnit.miles
+      ? paceSecondsPerUnit / 1.60934
+      : paceSecondsPerUnit;
+
+  /*
+
+  print('PROJECTION DEBUG:');
+  print('  Target distance: $targetDistance ${unit.name}');
+  print('  Target distance in km: $targetDistanceKm km');
+  print('  Target time: $targetTime seconds');
+  print('  Stable pace string: $stablePaceString');
+  print('  Stable pace per km: $stableAveragePacePerKm sec/km');
+  */
 
   // If stable pace is not available yet, return calculating
   if (stableAveragePacePerKm == 0.0) {
@@ -62,8 +57,9 @@ final projectedFinishProvider = Provider<Map<String, String>>((ref) {
     };
   }
 
-  // Project total finish time
+  // Project total finish time (distance in km × pace in sec/km)
   final projectedTotalSeconds = targetDistanceKm * stableAveragePacePerKm;
+  //print('  Projected total seconds: $projectedTotalSeconds');
 
   // Format projected time
   String formattedProjectedTime;

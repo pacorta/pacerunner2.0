@@ -52,7 +52,7 @@ class _MapState extends ConsumerState<Map> {
 
     _locationServiceSubscription = LocationService.locationStream.listen(
       (LocationData currentLocation) {
-        print('Map: Received location update from service');
+        //print('Map: Received location update from service');
 
         if (!mounted) return;
 

@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:untitled/widgets/custom_distance_provider.dart';
 import 'package:untitled/widgets/custom_pace_provider.dart';
-import 'current_pace_in_seconds_provider.dart';
+import 'stable_average_pace_provider.dart';
 import 'distance_unit_provider.dart';
 import 'run_state_provider.dart';
 import 'dart:math';
 
 import 'package:flutter/services.dart';
+import 'package:untitled/utils/pace_utils.dart';
 
 class PaceBar extends ConsumerStatefulWidget {
   const PaceBar({
@@ -38,6 +39,26 @@ class _PaceBarState extends ConsumerState<PaceBar>
   late Animation<double> _iconPositionAnimation;
   bool _wasInTargetZone = false;
 
+  // Normaliza de forma segura evitando divisiones por cero y valores no finitos
+  double _safeNormalize(
+    double value,
+    double min,
+    double max,
+    double fallback,
+  ) {
+    final denom = max - min;
+    if (!denom.isFinite || denom.abs() < 1e-6) {
+      return fallback.clamp(0.0, 1.0);
+    }
+
+    // 1 - ((value - min) / (max - min)) para que menor tiempo = más rápido = derecha
+    final normalized = 1 - ((value - min) / denom);
+    if (!normalized.isFinite) {
+      return fallback.clamp(0.0, 1.0);
+    }
+    return normalized.clamp(0.0, 1.0);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -65,8 +86,16 @@ class _PaceBarState extends ConsumerState<PaceBar>
         .watch(customDistanceProvider); //Target distance goal set by the user
     final distanceUnit =
         ref.watch(distanceUnitProvider); //unit selected by the user
-    final currentPaceInSeconds = ref.watch(
-        currentPaceInSecondsProvider); //live current pace of the user (which already takes the unit into account)
+    final stablePaceString = ref.watch(stableAveragePaceProvider);
+    final currentPaceInSeconds = parsePaceStringToSeconds(
+        stablePaceString); //stable average pace converted to seconds
+
+    print('PaceBar DEBUG:');
+    print('  Stable pace string: $stablePaceString');
+    print('  Parsed to seconds: $currentPaceInSeconds');
+    print('  Target pace: $targetPaceSecondsPerMile sec/unit');
+    print('  Distance unit: $distanceUnit');
+    print('  Target distance: $targetDistanceInMiles');
 
     // Ensure the necessary values are set
     if (targetPaceSecondsPerMile == null || targetDistanceInMiles == null) {
@@ -75,18 +104,8 @@ class _PaceBarState extends ConsumerState<PaceBar>
       );
     }
 
-    // Adjust the pace value if the unit is kilometers
-    //This ensures that the PaceBar reflects the correct pace, regardless of whether the user is working with miles or kilometers.
-    double convertPace(double pace, DistanceUnit from, DistanceUnit to) {
-      if (from == to) return pace;
-      const mileToKilometer = 1.60934;
-      return from == DistanceUnit.miles
-          ? pace * mileToKilometer // Convert to km
-          : pace / mileToKilometer; // Convert to miles
-    }
-
-    final adjustedPace =
-        convertPace(currentPaceInSeconds, DistanceUnit.miles, distanceUnit);
+    // Use pace as-is; it already matches the selected unit (km or mi)
+    final adjustedPace = currentPaceInSeconds;
 
     // Calculate variance and range based on distance
     double acceptablePaceVariance =
@@ -114,10 +133,13 @@ class _PaceBarState extends ConsumerState<PaceBar>
     // Calculate the normalized position (0.0 to 1.0) on the bar
     double normalizedPace;
     if (adjustedPace > 0) {
-      normalizedPace = 1 -
-          (adjustedPace - minPaceSecondsPerMile) /
-              (maxPaceSecondsPerMile - minPaceSecondsPerMile);
-      normalizedPace = normalizedPace.clamp(0.0, 1.0);
+      // Normalizacion segura para evitar NaN/Inf o division por cero
+      normalizedPace = _safeNormalize(
+        adjustedPace,
+        minPaceSecondsPerMile,
+        maxPaceSecondsPerMile,
+        lastValidIconPosition,
+      );
       lastValidIconPosition = normalizedPace;
 
       // To trigger haptic feedback
@@ -179,14 +201,23 @@ class _PaceBarState extends ConsumerState<PaceBar>
             ),
             child: Stack(
               children: [
-                // Runner Icon Animation
+                // Time markers inside the bar
+                /*_buildTimeMarkers(
+                  targetPaceSecondsPerMile,
+                  targetDistanceInMiles,
+                  distanceUnit,
+                  minPaceSecondsPerMile,
+                  maxPaceSecondsPerMile,
+                ),*/
+
+                // Icon Animation
                 AnimatedBuilder(
                   animation: _iconPositionAnimation,
                   builder: (context, child) {
                     return Positioned(
                       left: _iconPositionAnimation.value,
                       top: 5.0,
-                      child: _buildRunnerIcon(
+                      child: _buildIcon(
                           normalizedPace, targetZoneStart, targetZoneEnd),
                     );
                   },
@@ -218,13 +249,7 @@ class _PaceBarState extends ConsumerState<PaceBar>
     double adaptiveRange = baseRange * exp(-0.03 * (targetDistanceInMiles - 1));
     return adaptiveRange.clamp(0.15, 0.50);
   }
-
-  // Helper to convert pace from miles to kilometers
-  double _convertPaceToKilometers(double paceInSecondsPerMile) {
-    const mileToKilometer = 1.60934;
-    return paceInSecondsPerMile / mileToKilometer;
-  }
-
+  /*
   Widget _buildPaceStatusIndicator(
       double pace, double targetStart, double targetEnd) {
     if (pace >= targetStart && pace <= targetEnd) {
@@ -250,8 +275,9 @@ class _PaceBarState extends ConsumerState<PaceBar>
     }
     return const SizedBox.shrink();
   }
+  */
 
-  Widget _buildRunnerIcon(double pace, double targetStart, double targetEnd) {
+  Widget _buildIcon(double pace, double targetStart, double targetEnd) {
     double iconSize = 50.0;
 
     if (pace >= targetStart && pace <= targetEnd) {
@@ -339,4 +365,92 @@ class _PaceBarState extends ConsumerState<PaceBar>
       _wasInTargetZone = isInTargetZone;
     }
   }
+/*
+  // Build time markers inside the pace bar
+  Widget _buildTimeMarkers(
+    double? targetPaceSecondsPerMile,
+    double? targetDistanceInMiles,
+    DistanceUnit distanceUnit,
+    double minPaceSecondsPerMile,
+    double maxPaceSecondsPerMile,
+  ) {
+    if (targetPaceSecondsPerMile == null || targetDistanceInMiles == null) {
+      return const SizedBox.shrink();
+    }
+
+    // Use distance in the same unit as pace (selected unit)
+    final distanceInSelectedUnit = targetDistanceInMiles;
+
+    // Calculate projected finish times for different positions
+    final slowTime =
+        _formatProjectedTime(maxPaceSecondsPerMile * distanceInSelectedUnit);
+    final targetTime =
+        _formatProjectedTime(targetPaceSecondsPerMile * distanceInSelectedUnit);
+    final fastTime =
+        _formatProjectedTime(minPaceSecondsPerMile * distanceInSelectedUnit);
+    return Stack(
+      children: [
+        // Slow marker (left side)
+        Positioned(
+          left: 8,
+          top: widget.height * 0.3,
+          child: _buildTimeMarker(slowTime, true),
+        ),
+
+        // Target marker (center)
+        Positioned(
+          left: (widget.width - 40) / 2,
+          top: widget.height * 0.3,
+          child: _buildTimeMarker(targetTime, false),
+        ),
+
+        // Fast marker (right side)
+        Positioned(
+          right: 8,
+          top: widget.height * 0.3,
+          child: _buildTimeMarker(fastTime, true),
+        ),
+      ],
+    );
+  }
+*/
+
+  /*
+  Widget _buildTimeMarker(String time, bool isSideMarker) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        time,
+        style: TextStyle(
+          fontSize: isSideMarker ? 8 : 9,
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+  
+
+  // Format projected time as HH:MM or MM:SS
+  String _formatProjectedTime(double totalSeconds) {
+    final hours = (totalSeconds / 3600).floor();
+    final minutes = ((totalSeconds % 3600) / 60).floor();
+    final seconds = (totalSeconds % 60).round();
+
+    if (hours > 0) {
+      return '${hours}h${minutes.toString().padLeft(2, '0')}m';
+    } else {
+      return '${minutes}m${seconds.toString().padLeft(2, '0')}s';
+    }
+  }
+  */
 }

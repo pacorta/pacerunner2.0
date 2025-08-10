@@ -16,12 +16,19 @@ final targetTimeProvider = Provider<double?>((ref) {
   final targetDistance = ref.watch(targetDistanceProvider);
   final customPace = ref.watch(customPaceProvider);
 
+  print('TARGET PROVIDERS DEBUG:');
+  print('  Target distance: $targetDistance');
+  print('  Custom pace: $customPace sec/unit');
+
   if (targetDistance == null || customPace == null) {
+    print('  Result: null (missing data)');
     return null;
   }
 
   // Calculate target time based on pace and distance
   // customPace is already in the correct unit (seconds/km or seconds/mi)
   // based on the distance unit selected by the user
-  return targetDistance * customPace;
+  final result = targetDistance * customPace;
+  print('  Calculated target time: $result seconds');
+  return result;
 });

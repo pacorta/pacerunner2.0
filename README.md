@@ -51,3 +51,42 @@ This makes the running experience more reliable and intuitive for goal-driven us
 
 - Modify the pacebar so it reflects the gap between the **goal pace** (green zone) and the **projected finish**.
 - Add run mode selection system and prepare framework for future running modes.
+
+
+# Pacebud Progress Log: 8/9/2025
+
+## Pace parsing y predicción más precisa
+
+Hoy cerré un par de detalles que hacían ruido en la experiencia: diferencias de unidades y un par de conversiones escondidas que inflaban los tiempos. Nada glamuroso, pero necesario para que la app diga lo que un corredor espera leer.
+
+### Qué cambié
+
+- Centralicé el parser de pace en `utils/pace_utils.dart` con `parsePaceStringToSeconds`. Un solo lugar que convierte "m:ss/mi" o "m:ss/km" a segundos por unidad.
+- Arreglé la proyección de meta en `projected_finish_provider.dart`:
+  - La distancia objetivo se calcula en km.
+  - Si el usuario corre en millas, normalizo el pace a segundos/km antes de proyectar. Resultado: predicciones coherentes en km y en millas.
+- Simplifiqué la `PaceBar`:
+  - Dejé de reconvertir el pace (ya viene en la unidad elegida).
+  - Invertí el mapeo para que “más rápido → derecha”.
+  - Añadí una normalización segura para evitar divisiones por cero y valores raros (el icono ya no “salta” si llega un dato extraño).
+
+### Por qué importa
+
+- El usuario ve una predicción que coincide con su realidad, no con una conversión fantasma.
+- La barra ahora es intuitiva: si vas más rápido, te mueves a la derecha. Punto.
+- Menos puntos frágiles: al tener un solo parser, es más difícil que se desalineen las pantallas.
+
+### Resultado
+
+- Predicted finish time correcto para 6.2 mi a ~6:50/mi ≈ 42m y pico (en vez de 1h+).
+- Marcadores de la barra centrados en 1h cuando la meta es 6.2 mi en 1h.
+- Código un poco más limpio y fácil de mantener.
+
+### Nota honesta
+
+Me tardé más de lo que quería en ver que el problema no era “el algoritmo”, sino “las unidades”. A veces lo simple es lo que más cuesta ver.
+
+### Siguientes pasos
+
+- Volver a prender los time markers de la barra cuando los necesite y usarlos para contar la historia “meta vs proyección”.
+- Dejar lista una vista de “modos de corrida” para futuras variantes.
