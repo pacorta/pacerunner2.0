@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:untitled/auth_wraper.dart';
+import 'root_shell.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase/firebase_options.dart';
 
@@ -61,6 +62,7 @@ class MyApp extends StatelessWidget {
             seedColor: const Color.fromARGB(255, 255, 255, 255)),
         useMaterial3: true,
       ),
+      // Wrap auth with RootShell so bottom nav is persistent across tabs
       home: const AuthWrapper(),
     );
   }

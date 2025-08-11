@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../../home_screen.dart';
+// import '../../home_screen.dart';
 //import '../../widgets/distance_unit_as_string_provider.dart';
 
 class RunningStatsPage extends StatefulWidget {
@@ -129,30 +129,42 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  IconButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const HomeScreen()),
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.home,
-                      color: Colors.white,
-                      size: 28,
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.home,
+                              color: Colors.white.withOpacity(0.5), size: 26),
+                          const SizedBox(height: 2),
+                          Text('Home',
+                              style: TextStyle(
+                                  color: Colors.white.withOpacity(0.5),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
                     ),
                   ),
-                  const Text(
-                    'Home',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.bar_chart, color: Colors.white, size: 26),
+                        SizedBox(height: 2),
+                        Text('Stats',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
+                      ],
                     ),
                   ),
                 ],
@@ -216,46 +228,57 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
             final run = runs[index].data() as Map<String, dynamic>;
             final docId = runs[index].id;
             return Container(
-              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
               decoration: BoxDecoration(
-                color: const Color.fromARGB(255, 18, 36, 83),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 6,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+                gradient: const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Color.fromRGBO(255, 87, 87, 1.0),
+                    Color.fromRGBO(140, 82, 255, 1.0),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(18),
               ),
-              child: Padding(
+              child: Container(
+                margin: const EdgeInsets.all(2), // gradient border thickness
                 padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 18, 36, 83),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header: Date + Time + Action buttons
+                    // Header: Date + Actions
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
                           child: Text(
                             _formatDateHeader(run['date'], run['startTime']),
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w400,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        // Action buttons row
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
                               icon: const Icon(Icons.info_outline,
                                   color: Colors.white, size: 16),
-                              onPressed: () {
-                                // Placeholder - doesn't do anything yet
-                              },
+                              onPressed: () {},
                               padding: const EdgeInsets.all(2),
                               constraints: const BoxConstraints(
                                   minWidth: 24, minHeight: 24),
@@ -263,15 +286,13 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
                             IconButton(
                               icon: const Icon(Icons.share,
                                   color: Colors.white, size: 16),
-                              onPressed: () {
-                                // Placeholder - doesn't do anything yet
-                              },
+                              onPressed: () {},
                               padding: const EdgeInsets.all(2),
                               constraints: const BoxConstraints(
                                   minWidth: 24, minHeight: 24),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete,
+                              icon: const Icon(Icons.delete_outline,
                                   color: Colors.white, size: 16),
                               onPressed: () => _confirmDeleteRun(docId),
                               padding: const EdgeInsets.all(2),
@@ -282,24 +303,33 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    // Metrics Grid: Distance | Pace | Time
+                    const SizedBox(height: 6),
+                    Divider(
+                      color: Colors.white.withOpacity(0.12),
+                      height: 1,
+                      thickness: 0.8,
+                    ),
+                    const SizedBox(height: 6),
+                    // Metrics Grid: Distance | Pace | Time with icons
                     Row(
                       children: [
                         Expanded(
-                          child: _buildMetric(
+                          child: _buildMetricWithIcon(
+                            Icons.route,
                             'Distance',
                             '${run['distance'].toStringAsFixed(2)} ${run['distanceUnitString']}',
                           ),
                         ),
                         Expanded(
-                          child: _buildMetric(
+                          child: _buildMetricWithIcon(
+                            Icons.speed,
                             'Pace',
                             run['averagePace'],
                           ),
                         ),
                         Expanded(
-                          child: _buildMetric(
+                          child: _buildMetricWithIcon(
+                            Icons.timer,
                             'Time',
                             run['time'],
                           ),
@@ -313,6 +343,43 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildMetricWithIcon(IconData icon, String label, String value) {
+    // Format time if needed using existing logic
+    String displayValue = value;
+    if (label == 'Time' && value.contains(':')) {
+      displayValue = _formatRunTime(value);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 12, color: Colors.white.withOpacity(0.8)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.7),
+                fontSize: 9,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          displayValue,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -368,34 +435,4 @@ String _formatRunTime(String timeString) {
   }
 }
 
-Widget _buildMetric(String label, String value) {
-  // Format time if this is the Time metric
-  String displayValue = value;
-  if (label == 'Time' && value.contains(':')) {
-    displayValue = _formatRunTime(value);
-  }
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        label,
-        style: TextStyle(
-          color: Colors.white.withOpacity(0.7),
-          fontSize: 10,
-          fontWeight: FontWeight.w400,
-        ),
-      ),
-      const SizedBox(height: 2),
-      Text(
-        displayValue,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
-        textAlign: TextAlign.left,
-      ),
-    ],
-  );
-}
+// Old _buildMetric removed in favor of _buildMetricWithIcon for improved UI

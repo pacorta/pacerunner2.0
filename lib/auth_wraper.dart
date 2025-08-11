@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase/firebaseWidgets/login_page.dart';
 //import 'firebase/firebaseWidgets/running_stats.dart';
-import 'home_screen.dart';
+// import 'home_screen.dart';
+import 'root_shell.dart';
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
@@ -18,7 +19,8 @@ class AuthWrapper extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasData) {
-          return const HomeScreen();
+          // Use RootShell so the bottom navigation bar is persistent
+          return const RootShell();
         } else {
           return const LoginPage();
         }

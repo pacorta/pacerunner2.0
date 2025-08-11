@@ -19,7 +19,7 @@ import 'pace_bar.dart';
 import 'map_controller_provider.dart';
 
 import '../firebase/firebaseWidgets/running_stats.dart';
-import '../home_screen.dart';
+// import '../home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'distance_unit_as_string_provider.dart';
@@ -327,7 +327,8 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
 
                   // Discard run button (smaller, red, discrete)
                   TextButton(
-                    onPressed: () => _showDiscardConfirmation(context),
+                    onPressed: () => _showDiscardConfirmation(context,
+                        closeMainDialog: true),
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.red,
                       padding: const EdgeInsets.symmetric(
@@ -348,7 +349,8 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
   }
 
   // Discard confirmation dialog
-  void _showDiscardConfirmation(BuildContext context) {
+  void _showDiscardConfirmation(BuildContext context,
+      {bool closeMainDialog = false}) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -372,25 +374,59 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close confirmation dialog
-                Navigator.of(context).pop(); // Close main dialog
+                // Close the confirmation dialog
+                Navigator.of(context).pop();
 
-                // Reset providers without saving
-                ref.read(distanceProvider.notifier).state = 0.0;
-                ref.read(speedProvider.notifier).state = 0.0;
-                ref.read(elapsedTimeProvider.notifier).state = '00:00:00';
+                // If this confirmation was opened on top of the summary dialog,
+                // close the summary dialog as well
+                if (closeMainDialog) {
+                  Navigator.of(context).pop();
+                }
+
+                // Stop GPS/location tracking immediately
+                try {
+                  LocationService.stopLocationTracking();
+                } catch (_) {}
+
+                // Ensure tracking is disabled so Map ignores updates until next run
+                try {
+                  ref.read(trackingProvider.notifier).state = false;
+                } catch (_) {}
+
+                // Stop and reset timer
+                try {
+                  ref.read(pausableTimerProvider.notifier).stop();
+                } catch (_) {}
+
+                // Reset run state so next session starts fresh
+                try {
+                  ref.read(runStateProvider.notifier).state =
+                      RunState.fetchingGPS;
+                } catch (_) {}
+
+                // Reset metrics and computed providers
+                try {
+                  ref.read(distanceProvider.notifier).state = 0.0;
+                  ref.read(speedProvider.notifier).state = 0.0;
+                } catch (_) {}
+                try {
+                  ref.read(elapsedTimeProvider.notifier).state = '00:00:00';
+                } catch (_) {}
                 resetCurrentPaceInSecondsProvider();
                 resetCurrentPaceProvider();
                 resetStableAveragePace(ref);
                 resetPredictionProviders(ref);
 
-                // Navigate back to home screen
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const HomeScreen(),
-                  ),
-                );
+                // Clear route-related shared state to avoid stale polylines
+                try {
+                  ref.read(locationsProvider.notifier).state = [];
+                  ref.read(polylineCoordinatesProvider.notifier).state = [];
+                } catch (_) {}
+
+                // Navigate back to root (RootShell) to restore bottom nav
+                if (mounted) {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                }
               },
               child: const Text(
                 'Discard',
@@ -630,6 +666,33 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
 
                         // Botones de control
                         _buildControlButtons(runState),
+
+                        // Discard run - subtle outlined style
+                        OutlinedButton.icon(
+                          onPressed: () => _showDiscardConfirmation(context),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.white.withOpacity(0.10),
+                            foregroundColor: Colors.white,
+                            side: BorderSide(
+                              color: Colors.white.withOpacity(0.30),
+                              width: 1.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            minimumSize: const Size(double.infinity, 44),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 12, horizontal: 16),
+                          ),
+                          icon: const Icon(Icons.delete_outline, size: 20),
+                          label: const Text(
+                            'Discard run',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),

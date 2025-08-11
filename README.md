@@ -1,24 +1,40 @@
-# Pacebud Progress Log: 8/9/2025
+# Pacebud Progress Log: 8/10/2025
 
-## More Accurate Pace Parsing and Prediction
+## Added Quick Start + end-to-end cleanup for Discard Run
 
-Today I fixed a few details that were causing issues in the user experience: unit differences and some hidden conversions that were inflating times. This was necessary for the app to show what a runner expects to see.
+### Problem:
+- After discarding, the next run sometimes had dangling GPS info/listeners, so the map didn’t show until the second try.
 
-### What Changed
+### Solution:
+- Full cleanup on discard: stop GPS, tracking OFF, stop/reset timer, reset run state, reset metrics/providers, clear route state, return to root.
+- - Dialog handling
+- `_showDiscardConfirmation(...)` now accepts `closeMainDialog` to avoid double pops. The summary dialog uses `closeMainDialog: true`; the main screen keeps the default.
 
-- Centralized **pace parsing** in `utils/pace_utils.dart` with `parsePaceStringToSeconds`. A single place that converts "m:ss/mi" or "m:ss/km" to seconds per unit.
-- Fixed **goal projection** in `projected_finish_provider.dart`:
-  - Target distance is calculated in km.
-  - If user runs in miles, pace is normalized to seconds/km before projecting. Result: consistent predictions in both km and miles.
-- Simplified the `PaceBar`:
-  - Stopped reconverting pace (it now comes in the chosen unit).
-  - Added safe normalization to avoid zero divisions and weird values (icon no longer "jumps" if strange data comes in).
+---
 
-### Result
+## Persistent navigation (RootShell):
+- Single bottom bar across the app with ***PageView*** (Home, Stats).
+- Directional transitions (Home→Stats left-to-right, Stats→Home right-to-left).
 
-- Correct predicted finish time.
-- Bar markers centered on desired time goal (goal is 6.1 miles in 1 hour, bar centers on 1hr)
+---
 
-- Set up a "run modes" view for future variants.
+## Settings:
+- ***Tap-to-toggle*** between Units of Measurement (Inspired by Strava).
+- Logout with confirmation.
 
-(To view past logs go to PAST-LOGS.md)
+---
+
+## Other UI Changes:
+- Redesigned the activities cards to look slimmer and modern.
+- Other minor UI changes (inkWell, discard button, among other changes).
+
+---
+
+## Notes:
+- Found a nested `MaterialApp` in `map.dart`. This can cause rendering issues. Plan: refactor the Map widget to return just `GoogleMap` (no nested `MaterialApp/Scaffold`).
+- I am thinking of adding a graphic with the amount of miles/km ran during the week.
+- This would be above the activties cards
+- Inspired by Strava
+- To achieve this I need to make the unit of measurement reflect the past runs. I have been ignoring this issue but it's catching up to me.
+
+(For earlier logs, see `PAST-LOGS.md`)
