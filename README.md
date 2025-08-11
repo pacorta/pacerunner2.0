@@ -30,6 +30,10 @@
 
 ---
 
+##Bug Fixes:
+- Discard run would persist even after run started. Added a conditional statement for it to appear only when the run state is 'readyToStart'
+- Added RootShell logic I forgot to put after a goal-focused run.
+
 ## Notes:
 - Found a nested `MaterialApp` in `map.dart`. This can cause rendering issues. Plan: refactor the Map widget to return just `GoogleMap` (no nested `MaterialApp/Scaffold`).
 - I am thinking of adding a graphic with the amount of miles/km ran during the week.

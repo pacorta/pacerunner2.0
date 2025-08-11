@@ -136,7 +136,9 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
                   Expanded(
                     child: InkWell(
                       onTap: () {
-                        Navigator.of(context).pop();
+                        // Return to root (RootShell) so bottom nav persists
+                        Navigator.of(context)
+                            .popUntil((route) => route.isFirst);
                       },
                       child: Column(
                         mainAxisSize: MainAxisSize.min,

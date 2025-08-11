@@ -667,32 +667,33 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                         // Botones de control
                         _buildControlButtons(runState),
 
-                        // Discard run - subtle outlined style
-                        OutlinedButton.icon(
-                          onPressed: () => _showDiscardConfirmation(context),
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: Colors.white.withOpacity(0.10),
-                            foregroundColor: Colors.white,
-                            side: BorderSide(
-                              color: Colors.white.withOpacity(0.30),
-                              width: 1.5,
+                        // Discard run
+                        if (runState == RunState.readyToStart)
+                          OutlinedButton.icon(
+                            onPressed: () => _showDiscardConfirmation(context),
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: Colors.white.withOpacity(0.10),
+                              foregroundColor: Colors.white,
+                              side: BorderSide(
+                                color: Colors.white.withOpacity(0.30),
+                                width: 1.5,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              minimumSize: const Size(double.infinity, 44),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 16),
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
+                            icon: const Icon(Icons.delete_outline, size: 20),
+                            label: const Text(
+                              'Discard run',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                            minimumSize: const Size(double.infinity, 44),
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 12, horizontal: 16),
                           ),
-                          icon: const Icon(Icons.delete_outline, size: 20),
-                          label: const Text(
-                            'Discard run',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
