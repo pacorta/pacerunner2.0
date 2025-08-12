@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'dart:ui' as ui;
+import 'dart:typed_data';
+import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../widgets/run_summary_card.dart';
 
 // import '../../home_screen.dart';
 //import '../../widgets/distance_unit_as_string_provider.dart';
@@ -15,6 +21,11 @@ class RunningStatsPage extends StatefulWidget {
 }
 
 class _RunningStatsPageState extends State<RunningStatsPage> {
+  // Share dialog render/export helpers
+  final GlobalKey _shareRepaintKey = GlobalKey();
+  final ValueNotifier<bool> _shareExportWithoutBackground =
+      ValueNotifier(false);
+
   void _deleteRun(String docId) async {
     try {
       await FirebaseFirestore.instance
@@ -288,7 +299,7 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
                             IconButton(
                               icon: const Icon(Icons.share,
                                   color: Colors.white, size: 16),
-                              onPressed: () {},
+                              onPressed: () => _showShareDialog(run),
                               padding: const EdgeInsets.all(2),
                               constraints: const BoxConstraints(
                                   minWidth: 24, minHeight: 24),
@@ -346,6 +357,114 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
         );
       },
     );
+  }
+
+  // Opens a modal with a RunSummaryCard for the selected activity.
+  void _showShareDialog(Map<String, dynamic> run) {
+    // Attempt to decode a future map snapshot if present. For MVP this will be null.
+    Uint8List? mapSnapshot;
+    final dynamic snapshotBase64 = run['mapSnapshotBase64'];
+    if (snapshotBase64 is String && snapshotBase64.isNotEmpty) {
+      try {
+        final String cleaned = snapshotBase64.contains(',')
+            ? snapshotBase64.split(',').last
+            : snapshotBase64;
+        mapSnapshot = base64Decode(cleaned);
+      } catch (_) {}
+    }
+
+    final String distance = (run['distance'] is num)
+        ? (run['distance'] as num).toStringAsFixed(2)
+        : (run['distance']?.toString() ?? '0.00');
+    final String unit = run['distanceUnitString']?.toString() ?? 'mi';
+    final String pace = run['averagePace']?.toString() ?? '';
+    final String time = run['time']?.toString() ?? '';
+
+    showDialog(
+      context: context,
+      barrierDismissible: true, // tap outside closes
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ValueListenableBuilder<bool>(
+                valueListenable: _shareExportWithoutBackground,
+                builder: (context, hideBackground, _) {
+                  return RepaintBoundary(
+                    key: _shareRepaintKey,
+                    child: RunSummaryCard(
+                      mapSnapshot: mapSnapshot, // null for now
+                      distance: distance,
+                      pace: pace,
+                      time: time,
+                      distanceUnit: unit,
+                      showCardBackground: !hideBackground,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  onPressed: _shareDialogCopyToClipboard,
+                  child: Column(
+                    children: const [
+                      Text('Copy to clipboard',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _shareDialogCopyToClipboard() async {
+    try {
+      _shareExportWithoutBackground.value = true;
+      await Future.delayed(const Duration(milliseconds: 16));
+      final boundary = _shareRepaintKey.currentContext!.findRenderObject()
+          as RenderRepaintBoundary;
+      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      final bytes = byteData!.buffer.asUint8List();
+      await Clipboard.setData(
+        ClipboardData(text: 'data:image/png;base64,${base64Encode(bytes)}'),
+      );
+      if (mounted) {
+        _shareExportWithoutBackground.value = false;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Run summary copied to clipboard!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        _shareExportWithoutBackground.value = false;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Failed to copy image'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    }
   }
 
   Widget _buildMetricWithIcon(IconData icon, String label, String value) {

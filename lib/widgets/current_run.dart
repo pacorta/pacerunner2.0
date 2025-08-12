@@ -321,7 +321,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                                 fontSize: 16, fontWeight: FontWeight.w600),
                           ),
                           Text(
-                            'Now is your only chance with the map (sorry).',
+                            'Share with the map (one time only)',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.white70,
@@ -696,7 +696,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                           OutlinedButton.icon(
                             onPressed: () => _showDiscardConfirmation(context),
                             style: OutlinedButton.styleFrom(
-                              backgroundColor: Colors.white.withOpacity(0.10),
+                              backgroundColor: Colors.red.withOpacity(0.75),
                               foregroundColor: Colors.white,
                               side: BorderSide(
                                 color: Colors.white.withOpacity(0.30),
@@ -735,7 +735,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     final readablePace = ref.watch(readablePaceProvider);
 
     // Usar el formato guardado si está disponible, sino usar texto por defecto
-    String headerText = readablePace.isNotEmpty ? readablePace : "Current Run";
+    String headerText = readablePace.isNotEmpty ? readablePace : "Classic Run";
 
     return Container(
       padding: const EdgeInsets.all(16.0),
