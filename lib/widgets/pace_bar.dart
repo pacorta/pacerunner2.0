@@ -413,9 +413,7 @@ class _PaceBarState extends ConsumerState<PaceBar>
       ],
     );
   }
-*/
 
-  /*
   Widget _buildTimeMarker(String time, bool isSideMarker) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),

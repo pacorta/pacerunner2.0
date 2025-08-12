@@ -7,6 +7,9 @@ class RunSummaryCard extends StatelessWidget {
   final String pace;
   final String time;
   final String distanceUnit;
+  // When false, the card renders without the semi-transparent rounded
+  // rectangle so the exported image can be pasted over photos.
+  final bool showCardBackground;
 
   const RunSummaryCard({
     super.key,
@@ -15,78 +18,87 @@ class RunSummaryCard extends StatelessWidget {
     required this.pace,
     required this.time,
     required this.distanceUnit,
+    this.showCardBackground = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Map screenshot (smaller size)
-          if (mapSnapshot != null) ...[
-            Container(
-              height: 140,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.memory(
-                  mapSnapshot!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey.withOpacity(0.3),
-                      child: const Center(
-                        child: Text(
-                          'Map preview unavailable',
-                          style: TextStyle(color: Colors.white70),
+    const double contentWidth = 240; // keep all elements visually aligned
+
+    final Widget content = SizedBox(
+        width: contentWidth,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (mapSnapshot != null) ...[
+              SizedBox(
+                width: 160,
+                height: 88,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.memory(
+                    mapSnapshot!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey.withOpacity(0.3),
+                        child: const Center(
+                          child: Text(
+                            'Map preview',
+                            style: TextStyle(color: Colors.white70),
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-          ],
-
-          Column(
-            children: [
-              _buildMetric('Distance', '$distance $distanceUnit'),
-              const SizedBox(height: 16),
-              _buildMetric('Pace', pace),
-              const SizedBox(height: 16),
-              _buildMetric('Time', time),
+              const SizedBox(height: 14),
             ],
-          ),
+            Column(
+              children: [
+                _buildMetric('Distance', '$distance $distanceUnit'),
+                const SizedBox(height: 10),
+                _buildMetric('Pace', pace),
+                const SizedBox(height: 10),
+                _buildMetric('Time', time),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Image.asset(
+              'images/pacebud-horizontal-white.png',
+              width: 160,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return const Text(
+                  'pacebud',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                );
+              },
+            ),
+          ],
+        ));
 
-          const SizedBox(height: 32),
+    if (!showCardBackground) {
+      // Export variant without background rectangle
+      return ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 220, maxWidth: 300),
+        child: Center(child: content),
+      );
+    }
 
-          // Pacebud horizontal white logo
-          Image.asset(
-            'images/pacebud-horizontal-white.png',
-            height: 32,
-            errorBuilder: (context, error, stackTrace) {
-              return const Text(
-                'pacebud',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              );
-            },
-          ),
-        ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      constraints: const BoxConstraints(minWidth: 240, maxWidth: 320),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(28),
       ),
+      child: content,
     );
   }
 
@@ -95,25 +107,35 @@ class RunSummaryCard extends StatelessWidget {
     if (label == 'Time' && value.contains(':')) {
       displayValue = _formatRunTime(value);
     }
+    if (label == 'Pace') {
+      // Ensure a space before the slash so it reads like "8:36 /mi"
+      if (!displayValue.contains(' /')) {
+        displayValue = displayValue.replaceAll('/', ' /');
+      }
+    }
+
+    final double valueFontSize = label == 'Distance' ? 48 : 40;
 
     return Column(
       children: [
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
-            fontSize: 12,
-            fontWeight: FontWeight.w400,
+            color: Colors.white.withOpacity(0.95),
+            fontSize: 20,
+            fontWeight: FontWeight.w500,
+            height: 1.0,
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           displayValue,
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
+            fontSize: valueFontSize,
+            fontWeight: FontWeight.w700,
+            height: 1.05,
           ),
           textAlign: TextAlign.center,
         ),

@@ -47,6 +47,10 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
   bool _hasTransitioned = false; //Para evitar transiciones múltiples
   DateTime? _runStartTime;
   final GlobalKey _repaintBoundaryKey = GlobalKey();
+  // Controls whether the summary is rendered without the dark card background
+  // while exporting to clipboard. Using ValueNotifier so the dialog subtree
+  // (separate route) rebuilds when toggled.
+  final ValueNotifier<bool> _exportWithoutBackground = ValueNotifier(false);
 
   @override
   void initState() {
@@ -193,15 +197,21 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // RepaintBoundary wraps the card for future PNG export
-            RepaintBoundary(
-              key: _repaintBoundaryKey,
-              child: RunSummaryCard(
-                mapSnapshot: mapSnapshot,
-                distance: distance.toString(),
-                pace: finalPace,
-                time: finalTime,
-                distanceUnit: distanceUnitString,
-              ),
+            ValueListenableBuilder<bool>(
+              valueListenable: _exportWithoutBackground,
+              builder: (context, hideBackground, _) {
+                return RepaintBoundary(
+                  key: _repaintBoundaryKey,
+                  child: RunSummaryCard(
+                    mapSnapshot: mapSnapshot,
+                    distance: distance.toString(),
+                    pace: finalPace,
+                    time: finalTime,
+                    distanceUnit: distanceUnitString,
+                    showCardBackground: !hideBackground,
+                  ),
+                );
+              },
             ),
 
             const SizedBox(height: 24),
@@ -311,7 +321,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                                 fontSize: 16, fontWeight: FontWeight.w600),
                           ),
                           Text(
-                            'Now is your only chance (sorry).',
+                            'Now is your only chance with the map (sorry).',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.white70,
@@ -442,21 +452,32 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
   // Copy run summary to clipboard as PNG
   Future<void> _copyToClipboard() async {
     try {
+      // Render once without the card background so the exported image
+      // can be pasted over photos (Instagram stories, etc.).
+      _exportWithoutBackground.value = true;
+      // Wait one frame so the widget rebuilds without background
+      await Future.delayed(const Duration(milliseconds: 16));
+
       // Get the RepaintBoundary
-      RenderRepaintBoundary boundary = _repaintBoundaryKey.currentContext!
+      final RenderRepaintBoundary boundary = _repaintBoundaryKey.currentContext!
           .findRenderObject() as RenderRepaintBoundary;
 
       // Capture as image with high quality
-      ui.Image image = await boundary.toImage(pixelRatio: 2.0);
+      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
 
       // Convert to PNG bytes
-      ByteData? byteData =
+      final ByteData? byteData =
           await image.toByteData(format: ui.ImageByteFormat.png);
-      Uint8List pngBytes = byteData!.buffer.asUint8List();
+      final Uint8List pngBytes = byteData!.buffer.asUint8List();
 
       // Copy to clipboard as base64 encoded image
       await Clipboard.setData(ClipboardData(
           text: "data:image/png;base64,${base64Encode(pngBytes)}"));
+
+      // Restore background for on-screen dialog
+      if (mounted) {
+        _exportWithoutBackground.value = false;
+      }
 
       // Show confirmation
       if (mounted) {
@@ -470,6 +491,9 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
       }
     } catch (e) {
       print('Error copying to clipboard: $e');
+      if (mounted) {
+        _exportWithoutBackground.value = false;
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
