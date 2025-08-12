@@ -3,9 +3,9 @@ import 'package:untitled/widgets/elapsed_time_provider.dart';
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-import 'dart:convert';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:super_clipboard/super_clipboard.dart';
 import 'map.dart';
 import 'tracking_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -470,9 +470,14 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
           await image.toByteData(format: ui.ImageByteFormat.png);
       final Uint8List pngBytes = byteData!.buffer.asUint8List();
 
-      // Copy to clipboard as base64 encoded image
-      await Clipboard.setData(ClipboardData(
-          text: "data:image/png;base64,${base64Encode(pngBytes)}"));
+      // Copy PNG bytes to system clipboard (not base64 text)
+      final clipboard = SystemClipboard.instance;
+      if (clipboard == null) {
+        throw Exception('Clipboard not available on this platform');
+      }
+      final item = DataWriterItem();
+      item.add(Formats.png(pngBytes));
+      await clipboard.write([item]);
 
       // Restore background for on-screen dialog
       if (mounted) {
@@ -483,7 +488,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Run summary copied to clipboard!'),
+            content: Text('Image copied! Paste in your story.'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
@@ -735,7 +740,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     final readablePace = ref.watch(readablePaceProvider);
 
     // Usar el formato guardado si está disponible, sino usar texto por defecto
-    String headerText = readablePace.isNotEmpty ? readablePace : "Classic Run";
+    String headerText = readablePace.isNotEmpty ? readablePace : "Run";
 
     return Container(
       padding: const EdgeInsets.all(16.0),

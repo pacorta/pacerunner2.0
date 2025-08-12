@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:super_clipboard/super_clipboard.dart';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'dart:convert';
@@ -518,13 +519,18 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
       final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final bytes = byteData!.buffer.asUint8List();
-      await Clipboard.setData(
-        ClipboardData(text: 'data:image/png;base64,${base64Encode(bytes)}'),
-      );
+      // Copiar PNG real al portapapeles (no base64)
+      final clipboard = SystemClipboard.instance;
+      if (clipboard == null) {
+        throw Exception('Clipboard not available on this platform');
+      }
+      final item = DataWriterItem();
+      item.add(Formats.png(bytes));
+      await clipboard.write([item]);
       if (mounted) {
         _shareExportWithoutBackground.value = false;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Run summary copied to clipboard!'),
+          content: Text('Image copied! Paste in Instagram Story.'),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 2),
         ));

@@ -40,7 +40,8 @@ android {
         applicationId = "com.example.untitled"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        minSdk = flutter.minSdkVersion//-~-~-~-~->this one should update it by itself to the latest sdk version, so don't update it unless necessary.
+        // super_clipboard requires minSdkVersion 23 for image clipboard support
+        minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName

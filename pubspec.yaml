@@ -46,6 +46,7 @@ dependencies:
   cloud_firestore: ^5.4.4
   google_sign_in: ^6.2.1
   flutter_dotenv: ^5.2.1
+  super_clipboard: ^0.9.1
 
 dev_dependencies:
   flutter_test:
