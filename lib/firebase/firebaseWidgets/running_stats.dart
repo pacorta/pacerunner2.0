@@ -7,11 +7,14 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../widgets/run_summary_card.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../widgets/distance_unit_provider.dart';
+import '../../widgets/distance_unit_conversion.dart';
 
 // import '../../home_screen.dart';
 //import '../../widgets/distance_unit_as_string_provider.dart';
 
-class RunningStatsPage extends StatefulWidget {
+class RunningStatsPage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? newRunData;
 
   const RunningStatsPage({super.key, this.newRunData});
@@ -20,7 +23,7 @@ class RunningStatsPage extends StatefulWidget {
   _RunningStatsPageState createState() => _RunningStatsPageState();
 }
 
-class _RunningStatsPageState extends State<RunningStatsPage> {
+class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
   // Share dialog render/export helpers
   final GlobalKey _shareRepaintKey = GlobalKey();
   final ValueNotifier<bool> _shareExportWithoutBackground =
@@ -119,8 +122,8 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
           ),
           child: Column(
             children: [
-              if (widget.newRunData != null)
-                _displayCurrentRunStats(widget.newRunData!),
+              //if (widget.newRunData != null)
+              //  _displayCurrentRunStats(widget.newRunData!),
               Expanded(
                 child: _buildRunList(),
               ),
@@ -190,6 +193,28 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
   }
 
   Widget _displayCurrentRunStats(Map<String, dynamic> runData) {
+    final unit = ref.watch(distanceUnitProvider);
+    final String unitLabel = unit == DistanceUnit.kilometers ? 'km' : 'mi';
+
+    final num stored = (runData['distance'] as num? ?? 0);
+    final String storedUnit =
+        (runData['distanceUnitString']?.toString() ?? 'mi');
+    final String timeString = runData['time']?.toString() ?? '00:00:00';
+
+    double display = stored.toDouble();
+    if (storedUnit == 'mi' && unit == DistanceUnit.kilometers) {
+      display = milesToKilometers(display);
+    } else if (storedUnit == 'km' && unit == DistanceUnit.miles) {
+      display = kilometersToMiles(display);
+    }
+
+    final String paceString = _computePaceString(
+      timeString: timeString,
+      distanceValue: stored.toDouble(),
+      storedDistanceUnit: storedUnit,
+      currentUnit: unit,
+    );
+
     return Container(
       margin: const EdgeInsets.all(16), //spacing around container
       padding: const EdgeInsets.all(16), //padding inside container
@@ -212,10 +237,9 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          Text(
-              'Distance: ${runData['distance'].toStringAsFixed(2)} ${runData['distanceUnitString']}'), //tested and works [nov 20, 2024]
+          Text('Distance: ${display.toStringAsFixed(2)} $unitLabel'),
           Text('Time: ${runData['time']}'),
-          Text('Average Pace: ${runData['averagePace']}'),
+          Text('Average Pace: $paceString'),
         ],
       ),
     );
@@ -330,14 +354,48 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
                           child: _buildMetricWithIcon(
                             Icons.route,
                             'Distance',
-                            '${run['distance'].toStringAsFixed(2)} ${run['distanceUnitString']}',
+                            (() {
+                              final unit = ref.watch(distanceUnitProvider);
+                              final String unitLabel =
+                                  unit == DistanceUnit.kilometers ? 'km' : 'mi';
+
+                              final num stored = (run['distance'] as num? ?? 0);
+                              final String storedUnit =
+                                  (run['distanceUnitString']?.toString() ??
+                                      'mi');
+
+                              double display = stored.toDouble();
+                              if (storedUnit == 'mi' &&
+                                  unit == DistanceUnit.kilometers) {
+                                display = milesToKilometers(display);
+                              } else if (storedUnit == 'km' &&
+                                  unit == DistanceUnit.miles) {
+                                display = kilometersToMiles(display);
+                              }
+                              return '${display.toStringAsFixed(2)} $unitLabel';
+                            })(),
                           ),
                         ),
                         Expanded(
                           child: _buildMetricWithIcon(
                             Icons.speed,
                             'Pace',
-                            run['averagePace'],
+                            (() {
+                              final unit = ref.watch(distanceUnitProvider);
+                              final String storedUnit =
+                                  (run['distanceUnitString']?.toString() ??
+                                      'mi');
+                              final num storedDistance =
+                                  (run['distance'] as num? ?? 0);
+                              final String timeString =
+                                  run['time']?.toString() ?? '00:00:00';
+                              return _computePaceString(
+                                timeString: timeString,
+                                distanceValue: storedDistance.toDouble(),
+                                storedDistanceUnit: storedUnit,
+                                currentUnit: unit,
+                              );
+                            })(),
                           ),
                         ),
                         Expanded(
@@ -373,11 +431,26 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
       } catch (_) {}
     }
 
-    final String distance = (run['distance'] is num)
-        ? (run['distance'] as num).toStringAsFixed(2)
-        : (run['distance']?.toString() ?? '0.00');
-    final String unit = run['distanceUnitString']?.toString() ?? 'mi';
-    final String pace = run['averagePace']?.toString() ?? '';
+    final num storedDistance = (run['distance'] as num? ?? 0);
+    final String storedUnitStr = run['distanceUnitString']?.toString() ?? 'mi';
+
+    final unit = ref.watch(distanceUnitProvider);
+    final String unitLabel = unit == DistanceUnit.kilometers ? 'km' : 'mi';
+
+    double displayDistance = storedDistance.toDouble();
+    if (storedUnitStr == 'mi' && unit == DistanceUnit.kilometers) {
+      displayDistance = milesToKilometers(displayDistance);
+    } else if (storedUnitStr == 'km' && unit == DistanceUnit.miles) {
+      displayDistance = kilometersToMiles(displayDistance);
+    }
+
+    final String distance = displayDistance.toStringAsFixed(2);
+    final String pace = _computePaceString(
+      timeString: run['time']?.toString() ?? '00:00:00',
+      distanceValue: storedDistance.toDouble(),
+      storedDistanceUnit: storedUnitStr,
+      currentUnit: unit,
+    );
     final String time = run['time']?.toString() ?? '';
 
     showDialog(
@@ -401,7 +474,7 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
                       distance: distance,
                       pace: pace,
                       time: time,
-                      distanceUnit: unit,
+                      distanceUnit: unitLabel,
                       showCardBackground: !hideBackground,
                     ),
                   );
@@ -503,6 +576,45 @@ class _RunningStatsPageState extends State<RunningStatsPage> {
       ],
     );
   }
+}
+
+// Pace helpers
+int _parseHhMmSsToSeconds(String timeString) {
+  // Expected "hh:mm:ss"
+  final parts = timeString.split(':');
+  if (parts.length != 3) {
+    return 0;
+  }
+  final hours = int.tryParse(parts[0]) ?? 0;
+  final minutes = int.tryParse(parts[1]) ?? 0;
+  final seconds = int.tryParse(parts[2]) ?? 0;
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+String _computePaceString({
+  required String timeString,
+  required double distanceValue,
+  required String storedDistanceUnit, // 'km' or 'mi'
+  required DistanceUnit currentUnit,
+}) {
+  final elapsedSeconds = _parseHhMmSsToSeconds(timeString);
+  if (elapsedSeconds <= 0 || distanceValue <= 0) {
+    return '---';
+  }
+
+  // Convert distance into the unit we want to display pace
+  double distanceInCurrentUnit = distanceValue;
+  if (storedDistanceUnit == 'mi' && currentUnit == DistanceUnit.kilometers) {
+    distanceInCurrentUnit = milesToKilometers(distanceInCurrentUnit);
+  } else if (storedDistanceUnit == 'km' && currentUnit == DistanceUnit.miles) {
+    distanceInCurrentUnit = kilometersToMiles(distanceInCurrentUnit);
+  }
+
+  final paceSecondsPerUnit = elapsedSeconds / distanceInCurrentUnit;
+  final minutes = (paceSecondsPerUnit / 60).floor();
+  final seconds = (paceSecondsPerUnit % 60).round();
+  final unitLabel = currentUnit == DistanceUnit.kilometers ? 'km' : 'mi';
+  return '$minutes:${seconds.toString().padLeft(2, '0')}/$unitLabel';
 }
 
 String _formatTime(String? isoString) {
