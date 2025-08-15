@@ -105,6 +105,44 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     );
   }
 
+  // Verificar estado de Location Services y mostrar mensaje si están deshabilitados
+  void _checkLocationServiceStatus() async {
+    final isAvailable = await LocationService.isLocationServiceAvailable();
+    if (!isAvailable && mounted) {
+      _showLocationServiceDisabledBanner();
+    }
+  }
+
+  // Mostrar banner persistente cuando Location Services están deshabilitados
+  void _showLocationServiceDisabledBanner() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.location_off, color: Colors.white),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                  'Location Services disabled. Please enable in Settings for accurate tracking.'),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.orange,
+        duration: Duration(seconds: 8), // Más tiempo para que user lo vea
+        action: SnackBarAction(
+          label: 'Settings',
+          textColor: Colors.white,
+          onPressed: () async {
+            final opened = await LocationService.openAppSettings();
+            if (!opened) {
+              print('CurrentRun: Could not open system settings');
+            }
+          },
+        ),
+      ),
+    );
+  }
+
   // Empezar run
   void _startRun() {
     _runStartTime = DateTime.now(); // ← CAPTURAR HORA DE INICIO
@@ -118,31 +156,44 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     _gpsTimeoutTimer?.cancel();
 
     // SIEMPRE parar LocationService al salir de CurrentRun
-    try {
-      LocationService.stopLocationTracking();
-      print('CurrentRun: dispose() - LocationService stopped successfully');
-    } catch (e) {
+    // Usamos reset() en lugar de dispose() para mantener StreamController disponible
+    // ignore: unawaited_futures
+    LocationService.reset().then((_) {
+      print('CurrentRun: dispose() - LocationService reset successfully');
+    }).catchError((e) {
       // Si ref no está disponible, no importa - al menos cancelamos GPS
-      print('CurrentRun: dispose() - Error stopping LocationService: $e');
-    }
+      print('CurrentRun: dispose() - Error resetting LocationService: $e');
+    });
 
     super.dispose();
   }
 
   // Función para pausar run
-  void _pauseRun() {
+  void _pauseRun() async {
+    // Pausar el cronómetro
     ref.read(pausableTimerProvider.notifier).pause();
+
+    // Pausar el tracking de GPS para ahorrar batería
+    await LocationService.pauseLocationTracking();
+
+    // Cambiar estado
     ref.read(runStateProvider.notifier).state = RunState.paused;
   }
 
-  void _resumeRun() {
+  void _resumeRun() async {
+    // Reanudar el cronómetro
     ref.read(pausableTimerProvider.notifier).resume();
+
+    // Reanudar el tracking de GPS con máxima precisión
+    await LocationService.resumeLocationTracking();
+
+    // Cambiar estado
     ref.read(runStateProvider.notifier).state = RunState.running;
   }
 
   void _endRun() async {
     // Paso 1: Parar GPS DIRECTAMENTE (sin activar cleanup en map.dart)
-    LocationService.stopLocationTracking();
+    await LocationService.stopLocationTracking();
     print('CurrentRun: GPS service stopped directly before screenshot');
 
     // Paso 2: Capturar screenshot (datos aún disponibles)
@@ -383,7 +434,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
               ),
             ),
             TextButton(
-              onPressed: () {
+              onPressed: () async {
                 // Close the confirmation dialog
                 Navigator.of(context).pop();
 
@@ -395,7 +446,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
 
                 // Stop GPS/location tracking immediately
                 try {
-                  LocationService.stopLocationTracking();
+                  await LocationService.stopLocationTracking();
                 } catch (_) {}
 
                 // Ensure tracking is disabled so Map ignores updates until next run
@@ -526,6 +577,21 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
           _gpsTimeoutTimer?.cancel(); // Cancelar timeout
           _hasTransitioned = true; // Evitar transiciones múltiples
         }
+      }
+    });
+
+    // Listen for location service issues during active run
+    ref.listen(gpsStatusProvider, (previous, next) {
+      final currentState = ref.read(runStateProvider);
+
+      // Si estamos corriendo y GPS se vuelve muy malo, podría ser que user apagó Location Services
+      if ((currentState == RunState.running ||
+              currentState == RunState.paused) &&
+          next == GPSStatus.acquiring &&
+          previous != GPSStatus.acquiring) {
+        print(
+            'CurrentRun: GPS signal lost during run, checking location service...');
+        _checkLocationServiceStatus();
       }
     });
 

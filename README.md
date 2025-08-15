@@ -1,64 +1,115 @@
-# Pacebud Progress Log: August 10th - August 12th 2025
+# Pacebud Progress Log: August 13-14th
+## Background Location Tracking Fix (iOS)
 
-## Transparent clipboard summary cards
-### (branch: rs-cards)
-
-- In **run_summary.card.dart**, I tried my best to keep all the elements in the copied image the same width, just because I like how that looks on my instagram story. Also normalized the pace so that it displays as "8:36 /mi" (example)
-
-- In **current_run.dart**, I made it so that during the export we hide the background. This way, during the display I can see the data in a semi-transparent card, but the exported image is fully-transparent. Again, just because I like how this looks on my instagram story.
-
-- I had an issue here that is later fixed with the super_clipboard package (read further for more)
+After a test run revealed that location tracking stopped when the iPhone was locked, several changes were made to ensure continuous, accurate background tracking.
 
 ---
 
-## Every activity from the activities screen is now shareable (without the map)
-### (branch: share-all-rs-cards)
+## Permission Management System
 
-- From the activities list, tapping the share button calls _showShareDialog(run), which opens a modal containing a RunSummaryCard wrapped in the same RepaintBoundary I use post‑run.
-
-- For now, activities export without the map (MVP). The dialog still attempts to decode run['mapSnapshotBase64'] if it exists, but the default path is text‑only stats.
-
-- Again, I had an issue here that is later fixed with the super_clipboard package (read further for more)
+- Add request "Always" permission (not just "When in use") to the existing flow (`location_service.dart`)
+- Added native iOS authorization status checking to distinguish between "Always" and "When In Use" permissions (the location plugin doesn't distinguish between them - both return "granted") (`native_location_manager.dart`, `LocationManagerChannel.swift`)
+- Automatic "Always" permission request - if user only grants "When In Use", we automatically show the second iOS prompt to upgrade to "Always" (`location_service.dart`)
+- When user has permanently denied permissions, we take them to settings and we stop initialization until user comes back with permissions (`location_service.dart`)
 
 ---
 
-## Added dynamic measurement unit conversion for all runs
-### (branch: dynamic-unit-conversion)
+## Native iOS Location Manager (Method Channel)
 
-- In running_stats.dart, I made sure that every run displays distance and pace in the app’s currently selected unit (mi or km), even if it was originally recorded in the other unit.
-    - Distance values are converted on the fly using the helper functions in distance_unit_conversion.dart:
-        - kilometersToMiles() (already existed)
-	    - milesToKilometers() (newly added)
-	- Pace values are also re-computed to match the selected unit by feeding the converted distance into _computePaceString(), which returns a normalized format like 8:36/mi or 5:21/km.
-	- Both the activities list and the share dialog now pull the stored unit (distanceUnitString) from Firestore and convert if needed.
-    - If the stored value is null or invalid, it defaults to miles.
-    - If distance is 0 or time is 0:00:00, pace displays as "---" instead of returning bad math.
-
----
-
-## Introduced **Super_clipboard** package implementation
-### (this branch)
-
-- I had heard that the iOS Simulator can’t copy images to the clipboard and that base64 text would magically become an image on a real device. That’s not true. Both Simulator and device treat clipboard text as text. Apps like Instagram will paste a giant string (and may even crash). The goal here was to copy real image bytes. For this, I use the Flutter package **super_clipboard** to write PNG bytes directly to the system clipboard (works on iOS/Android/macOS/Windows). On Android you need minSdk 23 and the plugin’s ContentProvider in AndroidManifest with authorities matching your applicationId. On iOS it uses UIPasteboard without extra Info.plist keys.
+- Created a Method Channel to communicate directly with the Location Manager (native of iOS) (`LocationManagerChannel.swift`, `native_location_manager.dart`)
+- In this method channel we implemented:
+    - activityType = .fitness
+    - allowsbackgroundLocationUpdated = true: allows for continuous tracking in background
+    - pausesLocationUpdatesAutomatically = false: helps avoid iOS pause of tracking automatically
+    - showsBackgroundLocationIndicator = true (iOS 11+): blue GPS indicator for transparency
+- Registered custom location manager channel in AppDelegate.swift (`AppDelegate.swift`)
+- Added native_location_manager.dart for compatibility
+- Added native methods to location_service.dart to improve new flow
 
 ---
 
-## Up next:
+## Background Location Configuration
 
-(!!!) = most important
-(!) = least important
+- Added the background capability for location updates (`Info.plist`)
+- Background location config (`location_service.dart`):
+    - enableBackgroundMode(enable: true) - Enables background location tracking
+    - LocationAccuracy.navigation - Highest accuracy level (like fitness activity type)
+    - 1000ms interval and 5meter distance filter (for now, not sure if these are good)
 
-- (!!) I’m going to try to display live run stats in an iOS Live Activity. This is crucial because the app must be interactive during the run and no one (me included) wants to keep opening the app. Since I'm building in Flutter, I’m not doing a smartwatch extension (for now).
-    - My plan:
-        - Ship a phase 1 with local Live Activity updates while background location is active. This should work for short-to-medium runs, but from what I've read, after some time iOS shuts down the app and it can’t send info locally.
-        - If long runs still freeze updates, I’ll add a small, focused backend (e.g., Firebase Functions or AWS Lambda) to send APNs Live Activity updates so the lock screen continues to refresh even if iOS suspends the app.
+---
 
-- (!) Improve Stats:
-    - I would like to have split pace information available (maybe some graph bars)
-    - Show weekly running stats (runs, hours, miles, etc)
+## Smart Pause/Resume System
 
-- (!!!) Give the ability to change the pace goal mid-run
-- (!) Make the process to start running faster (remember last goals per distance, maybe?)
+- During pause/resume: Added a system to reduce battery usage by reducing the frequency when the run is paused (only updates every 20m) (`location_service.dart`, `current_run.dart`)
+- Set fitness activity type for better accuracy
+
+---
+
+## Error Handling & Recovery
+
+- I made stopLocationTracking() async so that it waits for enableBackgroundMode(false) and disableBackgroundLocation() to be completed (`location_service.dart`)
+- Considered different cases in which the GPS is not correctly gathered, such as if the user disables Location Services mid run, or the GPS signal is too weak, etc. These would break the stream (`location_service.dart`)
+- Location service recovery system - if user disables Location Services mid-run, the app attempts automatic recovery and shows helpful UI messages (`location_service.dart`, `current_run.dart`)
+- Implemented race condition protection with `_isStopping` flag to prevent multiple simultaneous stop calls (`location_service.dart`)
+
+---
+
+## StreamController Architecture Fix
+
+- During these changes I realized that, since my streamController is static, and that if I call dispose() and then want to initialize another run during the same session of the app, it will already be closed. To fix this I made two types of cleanup: reset(), and dispose() (`location_service.dart`)
+
+---
+
+## Things for later
+
+- I found that iOS ignores interval, and mostly uses distanceFilter: "In iOS, interval doesn't dictate everything; the distance filter and the accuracy do". Since we have distanceFilter set to 5m, if battery usage becomes an issue, we can increment to 10m
+
+- Backoff based on speed: We know that distanceFilter set at 5m is good for testing, but maybe we can go up to 10-15m when speed is constant, then go back to 5m if we detect sudden changes (accelerating/stopping)
+
+- Precise vs Approximate Location (iOS 14+)
+    - Even with permission, users can have Precise Location off (reduced accuracy). Two native helpers exposed:
+        - accuracyAuthorization() → returns full or reduced
+        - requestTemporaryFullAccuracy(reasonKey) → requests temporary full accuracy with text in Info.plist (NSLocationTemporaryUsageDescriptionDictionary)
+    - Use this if reduced accuracy is detected during an active run
+
+- Resilient Resubscription
+    - In onError, after re-enabling service, recreate the listener if it dropped:
+        _locationSubscription?.cancel();
+        _locationSubscription = _location.onLocationChanged.listen(...);
+
+---
+
+## Bugs
+
+- When user clicks to not allow for location tracking, they can still track a run without data
+
+---
+
+## Other Changes
+
+- Switched identifier from legacy name 'Pacerunner' to 'Pacebud' (`Info.plist`)
+
+---
+
+## Test Results
+- Background tracking continues when the iPhone is locked.
+- Blue GPS indicator is visible during background operation.
+- Polyline map updates smoothly without jumping between points.
+- Successfully tested on both simulator and physical device.
+
+---
+## What's Next:
+
+- I've already defined my MVP:
+    - Live activity with stats and time finish projection
+    - Split pace
+    - Only one goal: run under X time
+    - Change goal when run is paused
+    - Show projection time and turn text red when above X time
+    - Unified home/stats screen with a 'tap to view more' button. Will improve the UI/UX.
+    - Weekly snapshot summary above the stats
+    - Save the goal to firebase
+    - Show the goal in the shareable summary card, add the option to take it off in case user did not meet their goal.
 
 
 (For earlier logs, see `PAST-LOGS.md`)
