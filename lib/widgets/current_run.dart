@@ -34,6 +34,7 @@ import 'run_summary_card.dart';
 
 import '../services/location_service.dart';
 import 'gps_status_provider.dart';
+import 'live_activity_provider.dart';
 
 class CurrentRun extends ConsumerStatefulWidget {
   const CurrentRun({super.key});
@@ -56,11 +57,14 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
   void initState() {
     super.initState();
 
-    // Solo GPS initialization, NO listener
+    // Initialize Live Activity provider and GPS
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Start watching live activity provider to set up listeners
+      ref.read(liveActivityProvider);
+
       ref.read(runStateProvider.notifier).state = RunState.fetchingGPS;
       _initializeGPS();
-      _setupGPSTimeout(); // Solo timeout, NO listener aquí
+      _setupGPSTimeout();
     });
   }
 

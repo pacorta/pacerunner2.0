@@ -15,8 +15,12 @@ void main() async {
     WidgetsFlutterBinding.ensureInitialized();
     print('Flutter binding initialized');
 
-    await dotenv.load(fileName: ".env");
-    print('Environment variables loaded');
+    try {
+      await dotenv.load(fileName: ".env");
+      print('Environment variables loaded');
+    } catch (e) {
+      print('No .env file found, continuing without it: $e');
+    }
 
     // Check if Firebase is already initialized
     if (Firebase.apps.isEmpty) {

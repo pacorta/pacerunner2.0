@@ -1,108 +1,176 @@
-# Pacebud Progress Log: August 13-14th
-## Background Location Tracking Fix (iOS)
+# Pacebud Progress Log: August 15-19th
 
-After a test run revealed that location tracking stopped when the iPhone was locked, several changes were made to ensure continuous, accurate background tracking.
-
----
-
-## Permission Management System
-
-- Add request "Always" permission (not just "When in use") to the existing flow (`location_service.dart`)
-- Added native iOS authorization status checking to distinguish between "Always" and "When In Use" permissions (the location plugin doesn't distinguish between them - both return "granted") (`native_location_manager.dart`, `LocationManagerChannel.swift`)
-- Automatic "Always" permission request - if user only grants "When In Use", we automatically show the second iOS prompt to upgrade to "Always" (`location_service.dart`)
-- When user has permanently denied permissions, we take them to settings and we stop initialization until user comes back with permissions (`location_service.dart`)
+## iOS Live Activities (Lock Screen + Dynamic Island)
 
 ---
 
-## Native iOS Location Manager (Method Channel)
+## Notes from developer
 
-- Created a Method Channel to communicate directly with the Location Manager (native of iOS) (`LocationManagerChannel.swift`, `native_location_manager.dart`)
-- In this method channel we implemented:
-    - activityType = .fitness
-    - allowsbackgroundLocationUpdated = true: allows for continuous tracking in background
-    - pausesLocationUpdatesAutomatically = false: helps avoid iOS pause of tracking automatically
-    - showsBackgroundLocationIndicator = true (iOS 11+): blue GPS indicator for transparency
-- Registered custom location manager channel in AppDelegate.swift (`AppDelegate.swift`)
-- Added native_location_manager.dart for compatibility
-- Added native methods to location_service.dart to improve new flow
+I finally implemented iOS Live Activities so I can see my run without unlocking the phone. I am going to try to be as detailed as possible for future reference.
 
----
+First of all, to achieve this I needed to have background location tracking working (see past commit "background-location-tracking-fix")
 
-## Background Location Configuration
-
-- Added the background capability for location updates (`Info.plist`)
-- Background location config (`location_service.dart`):
-    - enableBackgroundMode(enable: true) - Enables background location tracking
-    - LocationAccuracy.navigation - Highest accuracy level (like fitness activity type)
-    - 1000ms interval and 5meter distance filter (for now, not sure if these are good)
+- Tested outside.
+- Data constantly updates and looks really pretty.
+- I ran 10 miles in 1:42 minutes and the live activity worked really good. I started with 100% battery and ended the run with 83%. For the time I ran I think this is great battery usage.
+- I only need to improve the esthetics. The text is way too small to be deciphering mid-run.
+- Data formatting could also improve (Ex. '1h 40m' instead of '1h 40m 00s').
+- The finish time projection accurately displays the finish time, it made me want to to faster at many times of the run, which is the main objective of the app. Nice.
 
 ---
 
-## Smart Pause/Resume System
+I (sort of) followed these instructions given by Google's Gemini:
 
-- During pause/resume: Added a system to reduce battery usage by reducing the frequency when the run is paused (only updates every 20m) (`location_service.dart`, `current_run.dart`)
-- Set fitness activity type for better accuracy
+> - Need iOS 16.1+
+> - Add a Widget Extension:
+>     - Go to File > New > Target… > Widget Extension.
+>     - Name the extension (e.g., "com.orzan.pacerunner.PacebudWidgetExtension").
+>     - Ensure "Include Live Activity" is selected.
+>     - Click Finish (and "Don't Activate" if prompted to activate the scheme).
+> - Configure Info.plist (main app target):
+>     - Add the "Supports Live Activities" key (Boolean, set to YES).
+>     - If needing frequent updates, add "NSSupportsLiveActivitiesFrequentUpdates" (Boolean, set to YES).
+> - Define ActivityAttributes:
+>     - Create a structure (e.g., PacebudActivityAttributes) in your Live Activity file (e.g., PacebudWidgetLiveActivity.swift).
+>     - This structure will describe the static and dynamic data for your Live Activity.
+> - Add your Main Target to Live Activity Target Membership:
+>     - Open the Inspector panel on the right side of Xcode.
+>     - Add your main app target to the "Target Membership" list for the Live Activity file.
+> - Implement Live Activity Configuration and Lifecycle (within your main app):
+>     - Use ActivityKit to start, update, and end your Live Activities.
+>     - You'll request the activity, then send updates to it as needed.
+> - Customize User Interface:
+>     - Design the appearance of your Live Activity using SwiftUI in the generated Live Activity file.
+>     - Consider each presentation: compact (Dynamic Island), minimal (multiple activities), and expanded (Lock Screen).
+>     - Use Xcode Previews to iteratively refine the UI.
 
----
-
-## Error Handling & Recovery
-
-- I made stopLocationTracking() async so that it waits for enableBackgroundMode(false) and disableBackgroundLocation() to be completed (`location_service.dart`)
-- Considered different cases in which the GPS is not correctly gathered, such as if the user disables Location Services mid run, or the GPS signal is too weak, etc. These would break the stream (`location_service.dart`)
-- Location service recovery system - if user disables Location Services mid-run, the app attempts automatic recovery and shows helpful UI messages (`location_service.dart`, `current_run.dart`)
-- Implemented race condition protection with `_isStopping` flag to prevent multiple simultaneous stop calls (`location_service.dart`)
-
----
-
-## StreamController Architecture Fix
-
-- During these changes I realized that, since my streamController is static, and that if I call dispose() and then want to initialize another run during the same session of the app, it will already be closed. To fix this I made two types of cleanup: reset(), and dispose() (`location_service.dart`)
-
----
-
-## Things for later
-
-- I found that iOS ignores interval, and mostly uses distanceFilter: "In iOS, interval doesn't dictate everything; the distance filter and the accuracy do". Since we have distanceFilter set to 5m, if battery usage becomes an issue, we can increment to 10m
-
-- Backoff based on speed: We know that distanceFilter set at 5m is good for testing, but maybe we can go up to 10-15m when speed is constant, then go back to 5m if we detect sudden changes (accelerating/stopping)
-
-- Precise vs Approximate Location (iOS 14+)
-    - Even with permission, users can have Precise Location off (reduced accuracy). Two native helpers exposed:
-        - accuracyAuthorization() → returns full or reduced
-        - requestTemporaryFullAccuracy(reasonKey) → requests temporary full accuracy with text in Info.plist (NSLocationTemporaryUsageDescriptionDictionary)
-    - Use this if reduced accuracy is detected during an active run
-
-- Resilient Resubscription
-    - In onError, after re-enabling service, recreate the listener if it dropped:
-        _locationSubscription?.cancel();
-        _locationSubscription = _location.onLocationChanged.listen(...);
+Note: The only thing I did not follow was the single ActivityAttributes definition. Read more about this down below.
 
 ---
 
-## Bugs
+## What I built
+- iOS widget UI & model
+  - `ios/com.orzan.pacerunner.PacebudWidget/LiveActivities/PacebudActivityAttributes.swift` — Data model duplicated for the Widget target. Fields: distance, distanceUnit, elapsedTime, pace, isRunning, goal?, predictedFinish? (optional).
+  - `ios/com.orzan.pacerunner.PacebudWidget/com_orzan_pacerunner_PacebudWidgetLiveActivity.swift` — SwiftUI layouts for Lock Screen + Dynamic Island. Renders goal and predicted finish when available. Includes `.widgetURL("pacebud://open")` for optional deep link.
 
-- When user clicks to not allow for location tracking, they can still track a run without data
+- Flutter → iOS bridge
+  - `lib/services/live_activity_service.dart` — MethodChannel API: start/update/end/availability. `updateRunningActivity(...)` now also sends `goal` and `predictedFinish`.
+  - `lib/widgets/live_activity_provider.dart` — Listens to run state, distance, timer, and the goal/prediction providers; pushes updates to iOS. Builds `goal` like "10.0 mi in 1h 40m 00s" and reads `projected_finish_provider.dart` for `predictedTime`.
+  - `lib/widgets/current_run.dart` — Initializes `liveActivityProvider` in `initState()` so updates start when the run starts.
+
+- iOS native channel (Runner target)
+  - `ios/Runner/LiveActivityChannel.swift` — Starts/updates/ends the activity using ActivityKit; keeps a local copy of `PacebudActivityAttributes` (same fields as the Widget target). Parses `goal` and `predictedFinish` from Flutter and passes them through.
+  - `ios/Runner/AppDelegate.swift` — Registers the channel when iOS ≥ 16.2.
+  - `ios/Runner/Info.plist` — Enables Live Activities and frequent updates.
+
+---
+
+## How it works (flow)
+
+- Data sources: `distanceProvider`, `formattedElapsedTimeProvider`, `stableAveragePaceProvider`, `runStateProvider`.
+- Extras:
+  - `goal` = `targetDistanceProvider` + `formattedUnitString` + `formattedTargetTimeProvider`.
+  - `predictedFinish` = `projected_finish_provider.dart` (`projectedTime`).
+- `live_activity_provider.dart` listens to all of the above and calls `LiveActivityService.updateRunningActivity(...)` whenever something changes.
+- iOS channel (`LiveActivityChannel.swift`) updates the Live Activity state; SwiftUI renders it on Lock Screen / Dynamic Island.
 
 ---
 
-## Other Changes
+## iOS setup checklist
 
-- Switched identifier from legacy name 'Pacerunner' to 'Pacebud' (`Info.plist`)
+- Main app `Info.plist`:
+  - `NSSupportsLiveActivities` = true
+  - `NSSupportsLiveActivitiesFrequentUpdates` = true
+- Capability: enable “Live Activities” on the Runner target.
+- Register the plugin in `AppDelegate.swift` (gated with `#available(iOS 16.2, *)`).
+- Optional: add a URL scheme `pacebud` under `CFBundleURLTypes` if you want the Live Activity tap to open the app (`.widgetURL("pacebud://open")`).
+
+---
+
+## Data model (duplicated on purpose)
+
+- I keep a separate `PacebudActivityAttributes` in each target to avoid cross-target headaches:
+  - Runner: `ios/Runner/LiveActivityChannel.swift`
+  - Widget: `ios/com.orzan.pacerunner.PacebudWidget/LiveActivities/PacebudActivityAttributes.swift`
+- Keep the fields in sync when you add/remove stuff.
+
+### Fields
+
+- distance: Double
+- distanceUnit: String ("km" | "mi")
+- elapsedTime: String ("hh:mm:ss")
+- pace: String (e.g., "5:05/km" or "8:10/mi")
+- isRunning: Bool
+- goal?: String (e.g., "10.0 mi in 1h 40m 00s")
+- predictedFinish?: String (e.g., "1h 43m 00s")
 
 ---
 
-## Test Results
-- Background tracking continues when the iPhone is locked.
-- Blue GPS indicator is visible during background operation.
-- Polyline map updates smoothly without jumping between points.
-- Successfully tested on both simulator and physical device.
+## UI quick notes
+
+- Lock Screen shows the main metrics; right column can show goal/predicted when present.
+- Dynamic Island (expanded bottom) shows `Pace`, `goal`, and `predicted` stacked.
+- Status dot: green = running, orange = paused.
 
 ---
+
+## How to test (real device)
+
+- Live Activities don’t work on the simulator.
+- Build/run on an iPhone (iOS 16.2+ recommended).
+- Start a run → lock the device → watch distance/time/pace update. If a goal is set, you’ll also see the goal and the predicted finish time.
+
+---
+
+## iOS version notes
+
+- ActivityKit exists in iOS 16.1, but `end(... dismissalPolicy:)` requires 16.2. I gate the native channel with `@available(iOS 16.2, *)` and recommend Deployment Target ≥ 16.2.
+- If supporting 16.1, keep `areActivitiesAvailable` checks and guard the 16.2-only calls or use a fallback ending.
+
+---
+
+## Control Widget (iOS 18)
+
+- `com_orzan_pacerunner_PacebudWidgetControl` uses the new iOS 18 Control Widgets APIs. Either guard it with `@available(iOS 18.0, *)` or set the widget extension deployment target to iOS 18.
+
+---
+
+## Troubleshooting
+
+- “Cannot find LiveActivityChannel in scope” → Add `LiveActivityChannel.swift` to the Xcode project and ensure target = Runner.
+- “No such module 'com_orzan_pacerunner_PacebudWidget'” → Don’t import the widget target in Runner. I duplicated the attributes on purpose.
+- “end(:dismissalPolicy:) is only available in iOS 16.2 or newer” → Gate with `@available(iOS 16.2, *)` and use `.immediate`.
+- “Object file built for newer iOS version” (pods) → Raise Runner/Pods deployment target or update the plugin. Often just a warning.
+
+---
+
+## Intructions to add new data fields
+
+1) Compute it in Flutter
+- Prefer a provider so it stays the single source of truth (like `projected_finish_provider.dart`).
+
+2) Send it over the bridge
+- Extend `LiveActivityService.updateRunningActivity(...)` and include it in the payload.
+
+3) Receive/store on iOS
+- Parse the new field in `LiveActivityChannel.swift` and add to `ContentState` in both attributes files (Runner + Widget).
+
+4) Render in SwiftUI
+- Update the lock screen / Dynamic Island sections in the widget file.
+
+5) Make it reactive (optional)
+- Also listen to the provider(s) in `live_activity_provider.dart` so the Live Activity updates automatically.
+
+Why this flow? Clear separation of concerns (Flutter owns data, iOS owns presentation), one place per piece of logic, and small repeatable edits across 4 places, so future changes are fast and low‑risk.
+
+
+---
+
 ## What's Next:
 
-- I've already defined my MVP:
-    - Live activity with stats and time finish projection
-    - Split pace
+- (Updated) I've already defined my MVP:
+    - ✅ Live activity with stats and time finish projection
+    - Split pace (optional)
     - Only one goal: run under X time
     - Change goal when run is paused
     - Show projection time and turn text red when above X time
@@ -110,6 +178,9 @@ After a test run revealed that location tracking stopped when the iPhone was loc
     - Weekly snapshot summary above the stats
     - Save the goal to firebase
     - Show the goal in the shareable summary card, add the option to take it off in case user did not meet their goal.
+    - Add a sound whenever the user goes above the finish time goal (maybe a bark since the mascot is a dog)
+
+- In the next update I will update the UI of the live activity based on some planed visuals I prepared in Canva, then proceed to the rest of the checklist above.
 
 
 (For earlier logs, see `PAST-LOGS.md`)

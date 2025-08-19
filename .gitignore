@@ -56,3 +56,6 @@ app.*.map.json
 
 # GoogleService-Info.plist
 ios/Runner/GoogleService-Info.plist
+
+/ios/vendor/
+/ios/Gemfile.lock

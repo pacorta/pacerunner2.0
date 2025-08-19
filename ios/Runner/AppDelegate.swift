@@ -20,6 +20,13 @@ import GoogleSignIn
       with: self.registrar(forPlugin: "pacebud/location_manager")!
     )
 
+    // Register Live Activity channel
+    if #available(iOS 16.2, *) {
+      LiveActivityChannel.register(
+        with: self.registrar(forPlugin: "pacebud/live_activity")!
+      )
+    }
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
