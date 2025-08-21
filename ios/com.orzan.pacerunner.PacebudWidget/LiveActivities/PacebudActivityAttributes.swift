@@ -18,6 +18,7 @@ struct PacebudActivityAttributes: ActivityAttributes {
         var isRunning: Bool
         var goal: String?
         var predictedFinish: String?
+        var differenceSeconds: Int?
     }
 
     // Fixed non-changing properties about your activity

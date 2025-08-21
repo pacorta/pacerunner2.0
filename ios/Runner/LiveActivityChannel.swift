@@ -12,6 +12,7 @@ struct PacebudActivityAttributes: ActivityAttributes {
         var isRunning: Bool
         var goal: String?
         var predictedFinish: String?
+        var differenceSeconds: Int?
     }
     
     var activityName: String
@@ -66,7 +67,8 @@ public class LiveActivityChannel: NSObject, FlutterPlugin {
             pace: "---",
             isRunning: true,
             goal: nil,
-            predictedFinish: nil
+            predictedFinish: nil,
+            differenceSeconds: nil
         )
         
         do {
@@ -102,6 +104,7 @@ public class LiveActivityChannel: NSObject, FlutterPlugin {
         let isRunning = args["isRunning"] as? Bool ?? true
         let goal = args["goal"] as? String
         let predictedFinish = args["predictedFinish"] as? String
+        let differenceSeconds = args["differenceSeconds"] as? Int
         
         let newState = PacebudActivityAttributes.ContentState(
             distance: distance,
@@ -110,7 +113,8 @@ public class LiveActivityChannel: NSObject, FlutterPlugin {
             pace: pace,
             isRunning: isRunning,
             goal: goal,
-            predictedFinish: predictedFinish
+            predictedFinish: predictedFinish,
+            differenceSeconds: differenceSeconds
         )
         
         Task {
@@ -136,7 +140,8 @@ public class LiveActivityChannel: NSObject, FlutterPlugin {
                 pace: activity.contentState.pace,
                 isRunning: false,
                 goal: activity.contentState.goal,
-                predictedFinish: activity.contentState.predictedFinish
+                predictedFinish: activity.contentState.predictedFinish,
+                differenceSeconds: activity.contentState.differenceSeconds
             )
             
             await activity.end(using: finalState, dismissalPolicy: .immediate)

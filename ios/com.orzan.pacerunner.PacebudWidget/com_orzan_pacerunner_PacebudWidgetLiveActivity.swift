@@ -9,54 +9,135 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
+// MARK: - Formatting helpers (widget-only)
+fileprivate func formatElapsed(_ hhmmss: String) -> String {
+    let parts = hhmmss.split(separator: ":")
+    if parts.count == 3 {
+        let hours = String(parts[0])
+        if hours == "00" || hours == "0" { // under 1 hour → mm:ss
+            return "\(parts[1]):\(parts[2])"
+        } else { // 1h+ → h:mm:ss
+            return "\(hours):\(parts[1]):\(parts[2])"
+        }
+    }
+    return hhmmss
+}
+
+fileprivate func removeTrailingSecondsToken(_ text: String?) -> String? {
+    guard let text else { return nil }
+    // For long placeholders, show compact dashes
+    if text.lowercased().contains("calculating") { return "---" }
+    let tokens = text.split(separator: " ")
+    if let last = tokens.last, last.hasSuffix("s") {
+        return tokens.dropLast().joined(separator: " ")
+    }
+    return text
+}
+
+fileprivate func stripPaceUnit(_ pace: String) -> String {
+    if let slashIndex = pace.firstIndex(of: "/") {
+        return String(pace[..<slashIndex])
+    }
+    return pace
+}
+
 struct com_orzan_pacerunner_PacebudWidgetLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: PacebudActivityAttributes.self) { context in
-            // Lock screen/banner UI goes here
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("🏃‍♂️ Pacebud")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.8))
-                    
-                    HStack {
-                        Text("\(String(format: "%.2f", context.state.distance)) \(context.state.distanceUnit)")
-                            .font(.title2)
-                            .fontWeight(.bold)
+            // Lock screen/banner UI — Strava‑like four columns with goal pill
+            VStack(alignment: .leading, spacing: 8) {
+                // DEBUG layout toggle: set to true to show max-width strings
+                let debugLayout = false
+                let elapsedFormatted = debugLayout ? "00:00:00" : formatElapsed(context.state.elapsedTime)
+                let goalNoSec = debugLayout ? "000.00 mi in 000h 00m" : removeTrailingSecondsToken(context.state.goal)
+                let projectionNoSec = debugLayout ? "000h 00m" : removeTrailingSecondsToken(context.state.predictedFinish)
+                let paceDisplay = debugLayout ? "00:00/mi" : stripPaceUnit(context.state.pace)
+                let minScale: CGFloat = debugLayout ? 1.0 : 0.7
+                // Top row: status dot + goal pill
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(context.state.isRunning ? Color.green : Color.orange)
+                        .frame(width: 8, height: 8)
+                    if let goal = goalNoSec {
+                        Text(goal)
+                            .font(.footnote)
+                            .fontWeight(.semibold)
                             .foregroundColor(.white)
-                        
-                        Spacer()
-                        
-                        VStack(alignment: .trailing) {
-                            Text(context.state.elapsedTime)
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.8))
-                            Text(context.state.pace)
-                                .font(.caption2)
-                                .foregroundColor(.white.opacity(0.7))
-                            if let goal = context.state.goal {
-                                Text(goal)
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.7))
-                            }
-                            if let predicted = context.state.predictedFinish {
-                                Text("pred: \(predicted)")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
-                        }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.white.opacity(0.08))
+                            .clipShape(Capsule())
                     }
+                    Spacer()
+                    Text("Pacebud")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white.opacity(0.9))
                 }
-                
-                Spacer()
-                
-                Circle()
-                    .fill(context.state.isRunning ? Color.green : Color.orange)
-                    .frame(width: 12, height: 12)
+
+                // Metrics row
+                HStack(alignment: .bottom, spacing: 8) {
+                    // Distance
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(debugLayout ? "000.00" : String(format: "%.2f", context.state.distance))
+                            .font(.system(size: 34, weight: .heavy, design: .rounded))
+                            .italic()
+                            .foregroundColor(.white)
+                            .minimumScaleFactor(minScale)
+                            .lineLimit(1)
+                        Text(context.state.distanceUnit == "mi" ? "Miles" : "Kilometers")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.75))
+                    }
+                    .layoutPriority(1)
+                    Spacer()
+                    // Time
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(elapsedFormatted)
+                            .font(.headline).fontWeight(.semibold)
+                            .monospacedDigit()
+                            .foregroundColor(.white)
+                            .minimumScaleFactor(minScale)
+                            .lineLimit(1)
+                        Text("Time")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.75))
+                    }
+                    .layoutPriority(1)
+                    Spacer()
+                    // Avg Pace
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(paceDisplay)
+                            .font(.headline).fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .minimumScaleFactor(minScale)
+                            .lineLimit(1)
+                        Text("Pace")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.75))
+                    }
+                    .layoutPriority(1)
+                    Spacer()
+                }
+                // Bottom projection row
+                HStack {
+                    Spacer()
+                    Text("Proj. Finish:")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.75))
+                    let isOverBottom = (context.state.differenceSeconds ?? 0) > 0
+                    Text(projectionNoSec ?? "--")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .monospacedDigit()
+                        .foregroundColor(isOverBottom ? .red : .white)
+                        .lineLimit(1)
+                    Spacer()
+                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .activityBackgroundTint(Color.black.opacity(0.8))
+            .activityBackgroundTint(Color.black.opacity(0.85))
             .activitySystemActionForegroundColor(Color.white)
 
         } dynamicIsland: { context in
@@ -151,7 +232,8 @@ extension PacebudActivityAttributes.ContentState {
             pace: "5:05/km",
             isRunning: true,
             goal: "10 km in 50m 00s",
-            predictedFinish: "49m 30s"
+            predictedFinish: "49m 30s",
+            differenceSeconds: -30
         )
     }
      
@@ -163,7 +245,8 @@ extension PacebudActivityAttributes.ContentState {
             pace: "6:42/mi",
             isRunning: false,
             goal: "6.0 mi in 1h 00m 00s",
-            predictedFinish: "1h 02m 10s"
+            predictedFinish: "1h 02m 10s",
+            differenceSeconds: 130
         )
     }
 }

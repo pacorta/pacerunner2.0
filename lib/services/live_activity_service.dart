@@ -23,6 +23,7 @@ class LiveActivityService {
     required bool isRunning,
     String? goal,
     String? predictedFinish,
+    int? differenceSeconds,
   }) async {
     try {
       final result = await _channel.invokeMethod('updateRunningActivity', {
@@ -33,6 +34,7 @@ class LiveActivityService {
         'isRunning': isRunning,
         'goal': goal,
         'predictedFinish': predictedFinish,
+        'differenceSeconds': differenceSeconds,
       });
       return result == true;
     } on PlatformException catch (e) {

@@ -1,4 +1,4 @@
-# Pacebud Progress Log: August 15-19th
+# Pacebud Progress Log: August 15-21st
 
 ## iOS Live Activities (Lock Screen + Dynamic Island)
 
@@ -52,14 +52,16 @@ Note: The only thing I did not follow was the single ActivityAttributes definiti
 - iOS widget UI & model
   - `ios/com.orzan.pacerunner.PacebudWidget/LiveActivities/PacebudActivityAttributes.swift` — Data model duplicated for the Widget target. Fields: distance, distanceUnit, elapsedTime, pace, isRunning, goal?, predictedFinish? (optional).
   - `ios/com.orzan.pacerunner.PacebudWidget/com_orzan_pacerunner_PacebudWidgetLiveActivity.swift` — SwiftUI layouts for Lock Screen + Dynamic Island. Renders goal and predicted finish when available. Includes `.widgetURL("pacebud://open")` for optional deep link.
+  - Update: Improved the layout: better formatting (mm:ss under 1h) and projection text turns red when behind.
 
 - Flutter → iOS bridge
-  - `lib/services/live_activity_service.dart` — MethodChannel API: start/update/end/availability. `updateRunningActivity(...)` now also sends `goal` and `predictedFinish`.
-  - `lib/widgets/live_activity_provider.dart` — Listens to run state, distance, timer, and the goal/prediction providers; pushes updates to iOS. Builds `goal` like "10.0 mi in 1h 40m 00s" and reads `projected_finish_provider.dart` for `predictedTime`.
+  - `lib/services/live_activity_service.dart` — MethodChannel API: start/update/end/availability. `updateRunningActivity(...)` now also sends `goal`, `predictedFinish`, and `differenceSeconds`.
+  - `lib/widgets/live_activity_provider.dart` — Listens to run state, distance, timer, and the goal/prediction providers; pushes updates to iOS. Uses `timeDifferenceSecondsProvider` (centralized) for `differenceSeconds`.
+  - `lib/widgets/time_difference_provider.dart` — New provider that exposes projected vs target time difference in seconds.
   - `lib/widgets/current_run.dart` — Initializes `liveActivityProvider` in `initState()` so updates start when the run starts.
 
 - iOS native channel (Runner target)
-  - `ios/Runner/LiveActivityChannel.swift` — Starts/updates/ends the activity using ActivityKit; keeps a local copy of `PacebudActivityAttributes` (same fields as the Widget target). Parses `goal` and `predictedFinish` from Flutter and passes them through.
+  - `ios/Runner/LiveActivityChannel.swift` — Starts/updates/ends the activity using ActivityKit; keeps a local copy of `PacebudActivityAttributes` (same fields as the Widget target). Parses `goal`, `predictedFinish`, and `differenceSeconds` from Flutter and passes them through.
   - `ios/Runner/AppDelegate.swift` — Registers the channel when iOS ≥ 16.2.
   - `ios/Runner/Info.plist` — Enables Live Activities and frequent updates.
 
@@ -71,6 +73,7 @@ Note: The only thing I did not follow was the single ActivityAttributes definiti
 - Extras:
   - `goal` = `targetDistanceProvider` + `formattedUnitString` + `formattedTargetTimeProvider`.
   - `predictedFinish` = `projected_finish_provider.dart` (`projectedTime`).
+  - `differenceSeconds` = `time_difference_provider.dart` (positive = behind, <= 0 = on/ahead) → sent to iOS for coloring.
 - `live_activity_provider.dart` listens to all of the above and calls `LiveActivityService.updateRunningActivity(...)` whenever something changes.
 - iOS channel (`LiveActivityChannel.swift`) updates the Live Activity state; SwiftUI renders it on Lock Screen / Dynamic Island.
 
@@ -103,6 +106,7 @@ Note: The only thing I did not follow was the single ActivityAttributes definiti
 - isRunning: Bool
 - goal?: String (e.g., "10.0 mi in 1h 40m 00s")
 - predictedFinish?: String (e.g., "1h 43m 00s")
+- differenceSeconds?: Int (positive = behind, drives red projection text)
 
 ---
 
@@ -111,6 +115,7 @@ Note: The only thing I did not follow was the single ActivityAttributes definiti
 - Lock Screen shows the main metrics; right column can show goal/predicted when present.
 - Dynamic Island (expanded bottom) shows `Pace`, `goal`, and `predicted` stacked.
 - Status dot: green = running, orange = paused.
+- Projection text: white when on/ahead; red when behind (uses `differenceSeconds`).
 
 ---
 

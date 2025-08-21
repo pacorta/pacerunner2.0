@@ -9,6 +9,7 @@ import 'stable_average_pace_provider.dart';
 import 'run_state_provider.dart';
 import 'projected_finish_provider.dart';
 import 'target_providers.dart';
+import 'time_difference_provider.dart';
 
 // Provider to manage Live Activity state
 final liveActivityProvider =
@@ -134,6 +135,8 @@ class LiveActivityNotifier extends StateNotifier<bool> {
       }
       final projection = _ref.read(projectedFinishProvider);
       String? predictedFinish = projection["projectedTime"];
+      // Use centralized provider for difference seconds (positive=behind)
+      final differenceSeconds = _ref.read(timeDifferenceSecondsProvider);
 
       // Convert distance to proper unit for display
       double displayDistance = distance;
@@ -149,6 +152,7 @@ class LiveActivityNotifier extends StateNotifier<bool> {
         isRunning: isRunning,
         goal: goal,
         predictedFinish: predictedFinish,
+        differenceSeconds: differenceSeconds,
       );
 
       if (!success) {
