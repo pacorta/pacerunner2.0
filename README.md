@@ -171,6 +171,10 @@ Why this flow? Clear separation of concerns (Flutter owns data, iOS owns present
 
 ---
 
+## Other changes
+
+- Updated GoogleService-info.plist and info.plist.
+
 ## What's Next:
 
 - (Updated) I've already defined my MVP:
