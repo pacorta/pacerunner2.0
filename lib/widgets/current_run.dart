@@ -606,14 +606,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [
-              Color.fromRGBO(140, 82, 255, 1.0),
-              Color.fromRGBO(255, 87, 87, 1.0),
-            ],
-          ),
+          color: Color.fromARGB(255, 17, 17, 17),
         ),
         child: SafeArea(
           child: Column(

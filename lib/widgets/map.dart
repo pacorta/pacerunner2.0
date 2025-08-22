@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
-import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'distance_provider.dart';
 import 'tracking_provider.dart';
@@ -25,7 +24,6 @@ class _MapState extends ConsumerState<Map> {
   bool _locationObtained = false;
 
   // Polyline points
-  PolylinePoints polylinePoints = PolylinePoints();
   List<LatLng> polylineCoordinates = [];
 
   // Speed
@@ -193,23 +191,49 @@ class _MapState extends ConsumerState<Map> {
         body: _locationObtained
             ? Stack(
                 children: [
-                  GoogleMap(
-                    onMapCreated: _onMapCreated,
-                    mapType: MapType.terrain,
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: true,
-                    initialCameraPosition: CameraPosition(
-                      target: _currentPosition,
-                      zoom: 15.0,
-                    ),
-                    polylines: {
-                      Polyline(
-                        polylineId: const PolylineId('route'),
-                        points: polylineCoordinates,
-                        color: const Color.fromARGB(255, 255, 49, 49),
-                        width: 5,
+                  // Container principal con borde gradiente
+                  Container(
+                    margin: const EdgeInsets.all(8.0),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12.0),
+                      gradient: const SweepGradient(
+                        center: Alignment.center,
+                        startAngle: 0.0,
+                        endAngle: 3.14159,
+                        colors: [
+                          Color.fromRGBO(140, 82, 255, 1.0),
+                          Color.fromRGBO(255, 87, 87, 1.0),
+                        ],
                       ),
-                    },
+                    ),
+                    padding: const EdgeInsets.all(3.0), // Grosor del borde
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(9.0),
+                        color: Colors.transparent,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(9.0),
+                        child: GoogleMap(
+                          onMapCreated: _onMapCreated,
+                          mapType: MapType.normal,
+                          myLocationEnabled: true,
+                          myLocationButtonEnabled: true,
+                          initialCameraPosition: CameraPosition(
+                            target: _currentPosition,
+                            zoom: 15.0,
+                          ),
+                          polylines: {
+                            Polyline(
+                              polylineId: const PolylineId('route'),
+                              points: polylineCoordinates,
+                              color: const Color.fromARGB(255, 255, 49, 49),
+                              width: 5,
+                            ),
+                          },
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               )

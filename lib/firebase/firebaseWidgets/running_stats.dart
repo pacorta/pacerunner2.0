@@ -11,6 +11,7 @@ import '../../widgets/run_summary_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../widgets/distance_unit_provider.dart';
 import '../../widgets/distance_unit_conversion.dart';
+import '../../widgets/weekly_snapshot.dart';
 
 // import '../../home_screen.dart';
 //import '../../widgets/distance_unit_as_string_provider.dart';
@@ -125,6 +126,7 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
             children: [
               //if (widget.newRunData != null)
               //  _displayCurrentRunStats(widget.newRunData!),
+              const WeeklySnapshot(debugMode: false),
               Expanded(
                 child: _buildRunList(),
               ),

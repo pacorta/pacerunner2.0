@@ -27,8 +27,8 @@ class _RootShellState extends ConsumerState<RootShell> {
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
                 colors: [
-                  Color.fromRGBO(140, 82, 255, 1.0),
                   Color.fromRGBO(255, 87, 87, 1.0),
+                  Color.fromRGBO(140, 82, 255, 1.0),
                 ],
               ),
             ),
@@ -49,14 +49,7 @@ class _RootShellState extends ConsumerState<RootShell> {
             bottom: 0,
             child: Container(
               decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerRight,
-                  end: Alignment.centerLeft,
-                  colors: [
-                    Color.fromRGBO(140, 82, 255, 1.0),
-                    Color.fromRGBO(255, 87, 87, 1.0),
-                  ],
-                ),
+                color: Colors.black,
               ),
               child: SafeArea(
                 top: false,
