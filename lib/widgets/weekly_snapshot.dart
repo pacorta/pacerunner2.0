@@ -45,13 +45,9 @@ class WeeklySnapshot extends ConsumerWidget {
         }
 
         final runs = snapshot.data!.docs;
-        final weeklyStats =
-            _calculateWeeklyStats(runs, unit, startOfWeekMidnight);
+        final weeklyStats = _calculateWeeklyStats(runs, unit, startOfWeek);
 
-        if (weeklyStats['totalDistance'] == 0.0) {
-          return const SizedBox.shrink(); // Don't show if no runs this week
-        }
-
+        // Always show the snapshot, even with 0 data
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
@@ -91,6 +87,18 @@ class WeeklySnapshot extends ConsumerWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                if (weeklyStats['totalDistance'] == 0.0) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'No activities this week yet',
+                    style: TextStyle(
+                      color: Colors.black.withOpacity(0.6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
 
                 Column(
@@ -113,7 +121,9 @@ class WeeklySnapshot extends ConsumerWidget {
                                 ),
                               ),
                               Text(
-                                '${weeklyStats['totalDistance'].toStringAsFixed(1)} ${weeklyStats['unit']}',
+                                weeklyStats['totalDistance'] == 0.0
+                                    ? '0.0 ${weeklyStats['unit']}'
+                                    : '${weeklyStats['totalDistance'].toStringAsFixed(1)} ${weeklyStats['unit']}',
                                 style: const TextStyle(
                                   color: Colors.black,
                                   fontSize: 16,
@@ -137,7 +147,9 @@ class WeeklySnapshot extends ConsumerWidget {
                                 ),
                               ),
                               Text(
-                                weeklyStats['totalTime'],
+                                weeklyStats['totalDistance'] == 0.0
+                                    ? '0 minutes'
+                                    : weeklyStats['totalTime'],
                                 style: const TextStyle(
                                   color: Colors.black,
                                   fontSize: 16,
@@ -180,30 +192,32 @@ class WeeklySnapshot extends ConsumerWidget {
     // Initialize daily data array [Monday=0, Tuesday=1, ..., Sunday=6]
     List<double> dailyDistanceKm = List.filled(7, 0.0);
 
-    for (var doc in runs) {
-      final run = doc.data() as Map<String, dynamic>;
+    if (runs.isNotEmpty) {
+      for (var doc in runs) {
+        final run = doc.data() as Map<String, dynamic>;
 
-      // Get distance and convert to km for internal calculation
-      final distance = (run['distance'] as num?)?.toDouble() ?? 0.0;
-      final storedUnit = run['distanceUnitString']?.toString() ?? 'km';
+        // Get distance and convert to km for internal calculation
+        final distance = (run['distance'] as num?)?.toDouble() ?? 0.0;
+        final storedUnit = run['distanceUnitString']?.toString() ?? 'km';
 
-      double distanceInKm = distance;
-      if (storedUnit == 'mi') {
-        distanceInKm = milesToKilometers(distance);
-      }
-      totalDistanceKm += distanceInKm;
+        double distanceInKm = distance;
+        if (storedUnit == 'mi') {
+          distanceInKm = milesToKilometers(distance);
+        }
+        totalDistanceKm += distanceInKm;
 
-      // Parse time (format: "HH:MM:SS")
-      final timeString = run['time']?.toString() ?? '00:00:00';
-      totalTimeInSeconds += _parseTimeStringToSeconds(timeString);
+        // Parse time (format: "HH:MM:SS")
+        final timeString = run['time']?.toString() ?? '00:00:00';
+        totalTimeInSeconds += _parseTimeStringToSeconds(timeString);
 
-      // Add to daily data
-      final timestamp = (run['timestamp'] as Timestamp?)?.toDate();
-      if (timestamp != null) {
-        final dayOfWeek =
-            timestamp.weekday - 1; // Convert to 0-indexed (Monday=0)
-        if (dayOfWeek >= 0 && dayOfWeek < 7) {
-          dailyDistanceKm[dayOfWeek] += distanceInKm;
+        // Add to daily data
+        final timestamp = (run['timestamp'] as Timestamp?)?.toDate();
+        if (timestamp != null) {
+          final dayOfWeek =
+              timestamp.weekday - 1; // Convert to 0-indexed (Monday=0)
+          if (dayOfWeek >= 0 && dayOfWeek < 7) {
+            dailyDistanceKm[dayOfWeek] += distanceInKm;
+          }
         }
       }
     }

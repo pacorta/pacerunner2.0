@@ -83,7 +83,16 @@ class _WeeklyLineChartState extends State<WeeklyLineChart> {
   }
 
   Widget _leftTitle(double value, TitleMeta meta) {
-    // Marcadores enteros: 0,1,2,3...
+    // Solo mostrar etiquetas si hay datos significativos
+    if (widget.data.every((d) => d == 0)) {
+      return const SizedBox.shrink(); // No mostrar etiquetas si no hay datos
+    }
+
+    // Solo mostrar etiquetas en valores enteros y cuando sea apropiado
+    if (value.toInt() > _maxY || value < 0) {
+      return const SizedBox.shrink();
+    }
+
     final style = TextStyle(
       fontWeight: FontWeight.w500,
       fontSize: 9,
@@ -99,8 +108,17 @@ class _WeeklyLineChartState extends State<WeeklyLineChart> {
 
   double get _maxY {
     final m = widget.data.fold<double>(0, (a, b) => b > a ? b : a);
-    // margen superior 25% para que no "tope"
-    return (m == 0) ? 1.0 : (m * 1.25);
+
+    // Si no hay datos, retornar 1.0
+    if (m == 0) return 1.0;
+
+    // Para valores muy pequeños (< 1), usar un margen más pequeño
+    if (m < 1.0) {
+      return (m * 1.5).clamp(0.5, 1.0);
+    }
+
+    // Para valores normales, usar margen del 25%
+    return m * 1.25;
   }
 
   // ---- Config principal ----
@@ -156,7 +174,7 @@ class _WeeklyLineChartState extends State<WeeklyLineChart> {
         leftTitles: AxisTitles(
           sideTitles: SideTitles(
             showTitles: true,
-            interval: (_maxY <= 5 ? 1 : (_maxY / 5)).clamp(1, 999).toDouble(),
+            interval: _calculateLeftInterval(),
             reservedSize: 30,
             getTitlesWidget: _leftTitle,
           ),
@@ -242,5 +260,13 @@ class _WeeklyLineChartState extends State<WeeklyLineChart> {
       ],
       withTouch: false,
     );
+  }
+
+  double _calculateLeftInterval() {
+    final maxY = _maxY;
+    if (maxY <= 5) {
+      return 1.0;
+    }
+    return (maxY / 5).ceilToDouble();
   }
 }

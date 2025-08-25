@@ -24,7 +24,7 @@ class PredictionDisplay extends ConsumerWidget {
         children: [
           // Projected Time
           Text(
-            'Predicted finish time',
+            'Projected finish time',
             style: TextStyle(
               color: Colors.white.withOpacity(0.9),
               fontSize: 12,

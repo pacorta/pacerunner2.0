@@ -12,6 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../widgets/distance_unit_provider.dart';
 import '../../widgets/distance_unit_conversion.dart';
 import '../../widgets/weekly_snapshot.dart';
+import '../../root_shell.dart';
+import '../../auth_wraper.dart';
 
 // import '../../home_screen.dart';
 //import '../../widgets/distance_unit_as_string_provider.dart';
@@ -83,111 +85,273 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
     );
   }
 
+  void _openSettingsSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      isScrollControlled: true,
+      builder: (context) {
+        return Consumer(builder: (context, refConsumer, _) {
+          final unit = refConsumer.watch(distanceUnitProvider);
+          final unitLabel = unit == DistanceUnit.miles ? 'Miles' : 'Kilometers';
+
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 20,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // User info section
+                Consumer(builder: (context, refConsumer, _) {
+                  final user = FirebaseAuth.instance.currentUser;
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor:
+                              const Color.fromRGBO(140, 82, 255, 1.0),
+                          child: Text(
+                            user?.email?.substring(0, 1).toUpperCase() ?? 'U',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user?.email ?? 'User',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Logged in',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                const SizedBox(height: 16),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text(
+                    'Units of Measurement',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  trailing: Text(
+                    unitLabel,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black54,
+                    ),
+                  ),
+                  onTap: () {
+                    final notifier =
+                        refConsumer.read(distanceUnitProvider.notifier);
+                    notifier.state = unit == DistanceUnit.miles
+                        ? DistanceUnit.kilometers
+                        : DistanceUnit.miles;
+                  },
+                ),
+                const SizedBox(height: 8),
+                Divider(color: Colors.black.withOpacity(0.1)),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                      if (context.mounted) {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          PageRouteBuilder(
+                            pageBuilder:
+                                (context, animation, secondaryAnimation) =>
+                                    const AuthWrapper(),
+                            transitionsBuilder: (context, animation,
+                                secondaryAnimation, child) {
+                              return child;
+                            },
+                            transitionDuration: Duration.zero,
+                            reverseTransitionDuration: Duration.zero,
+                          ),
+                          (route) => false,
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.logout, color: Colors.white),
+                    label: const Text('Logout',
+                        style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        });
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      child: Scaffold(
-        appBar: AppBar(
-          flexibleSpace: Container(
+    return Scaffold(
+      appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                Color.fromRGBO(255, 87, 87, 1.0),
+                Color.fromRGBO(140, 82, 255, 1.0),
+              ],
+            ),
+          ),
+        ),
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.settings, color: Colors.white),
+          onPressed: _openSettingsSheet,
+          tooltip: 'Settings',
+        ),
+        title: const Text('Activities'),
+        centerTitle: true,
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      body: Stack(
+        children: [
+          Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
+                begin: Alignment.centerRight,
+                end: Alignment.centerLeft,
                 colors: [
-                  Color.fromRGBO(255, 87, 87, 1.0),
                   Color.fromRGBO(140, 82, 255, 1.0),
+                  Color.fromRGBO(255, 87, 87, 1.0),
                 ],
               ),
             ),
           ),
-          automaticallyImplyLeading: false,
-          title: const Text('Activities'),
-          centerTitle: true,
-          titleTextStyle: const TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        body: Container(
-          decoration: const BoxDecoration(
-            color: Colors.black,
-            gradient: LinearGradient(
-              begin: Alignment.centerRight,
-              end: Alignment.centerLeft,
-              colors: [
-                Color.fromRGBO(140, 82, 255, 1.0),
-                Color.fromRGBO(255, 87, 87, 1.0),
+          // Scrollable content
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                //if (widget.newRunData != null)
+                //  _displayCurrentRunStats(widget.newRunData!),
+                const WeeklySnapshot(debugMode: false),
+                _buildRunList(),
               ],
             ),
           ),
-          child: Column(
-            children: [
-              //if (widget.newRunData != null)
-              //  _displayCurrentRunStats(widget.newRunData!),
-              const WeeklySnapshot(debugMode: false),
-              Expanded(
-                child: _buildRunList(),
-              ),
+        ],
+      ),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.centerRight,
+            end: Alignment.centerLeft,
+            colors: [
+              Color.fromRGBO(140, 82, 255, 1.0),
+              Color.fromRGBO(255, 87, 87, 1.0),
             ],
           ),
         ),
-        bottomNavigationBar: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerRight,
-              end: Alignment.centerLeft,
-              colors: [
-                Color.fromRGBO(140, 82, 255, 1.0),
-                Color.fromRGBO(255, 87, 87, 1.0),
-              ],
-            ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () {
-                        // Return to root (RootShell) so bottom nav persists
-                        Navigator.of(context)
-                            .popUntil((route) => route.isFirst);
-                      },
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.home,
-                              color: Colors.white.withOpacity(0.5), size: 26),
-                          const SizedBox(height: 2),
-                          Text('Home',
-                              style: TextStyle(
-                                  color: Colors.white.withOpacity(0.5),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Expanded(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 24),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      // Navigate back to home and clear the navigation stack
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder:
+                              (context, animation, secondaryAnimation) =>
+                                  const RootShell(),
+                          transitionsBuilder:
+                              (context, animation, secondaryAnimation, child) {
+                            return child; // No transition
+                          },
+                          transitionDuration: Duration.zero,
+                          reverseTransitionDuration: Duration.zero,
+                        ),
+                        (route) => false, // Remove all routes from the stack
+                      );
+                    },
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.bar_chart, color: Colors.white, size: 26),
-                        SizedBox(height: 2),
-                        Text('Stats',
+                      children: [
+                        Icon(Icons.home,
+                            color: Colors.white.withOpacity(0.5), size: 26),
+                        const SizedBox(height: 2),
+                        Text('Home',
                             style: TextStyle(
-                                color: Colors.white,
+                                color: Colors.white.withOpacity(0.5),
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
-                ],
-              ),
+                ),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.bar_chart, color: Colors.white, size: 26),
+                      SizedBox(height: 2),
+                      Text('Stats',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -262,11 +426,72 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
           return const Center(child: CircularProgressIndicator());
         }
         final runs = snapshot.data!.docs;
-        return ListView.builder(
-          itemCount: runs.length,
-          itemBuilder: (context, index) {
-            final run = runs[index].data() as Map<String, dynamic>;
-            final docId = runs[index].id;
+
+        if (runs.isEmpty) {
+          // Show a message when there are no runs
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  Color.fromRGBO(255, 87, 87, 1.0),
+                  Color.fromRGBO(140, 82, 255, 1.0),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Container(
+              margin: const EdgeInsets.all(2),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(255, 18, 36, 83),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.directions_run,
+                    size: 48,
+                    color: Colors.white.withOpacity(0.7),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No activities yet',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Start your first run to see your stats here!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          children: runs.map((doc) {
+            final run = doc.data() as Map<String, dynamic>;
+            final docId = doc.id;
             return Container(
               margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
               decoration: BoxDecoration(
@@ -414,7 +639,7 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
                 ),
               ),
             );
-          },
+          }).toList(),
         );
       },
     );

@@ -22,5 +22,5 @@ String formatPaceAsReadable(
   // Formatear la distancia con un decimal
   final distanceFormatted = distance.toStringAsFixed(1);
 
-  return '$distanceFormatted $unitLabel in $timeFormatted';
+  return '$distanceFormatted $unitLabel under $timeFormatted';
 }

@@ -291,13 +291,20 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                         resetStableAveragePace(ref);
                         resetPredictionProviders(ref);
 
-                        //(2) Pop Dialog and Navigate to Running Stats Page
+                        //(2) Pop Dialog and Navigate to Running Stats Page with NO transitions
                         Navigator.of(context).pop();
-                        Navigator.pushReplacement(
+                        Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                RunningStatsPage(newRunData: runData),
+                          PageRouteBuilder(
+                            pageBuilder:
+                                (context, animation, secondaryAnimation) =>
+                                    RunningStatsPage(newRunData: runData),
+                            transitionsBuilder: (context, animation,
+                                secondaryAnimation, child) {
+                              return child; // No transition, just show the page
+                            },
+                            transitionDuration: Duration.zero,
+                            reverseTransitionDuration: Duration.zero,
                           ),
                         );
 
@@ -603,195 +610,199 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     final distance = ref.watch(formattedDistanceProvider);
     final averagePace = ref.watch(stableAveragePaceProvider);
 
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          color: Color.fromARGB(255, 17, 17, 17),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // HEADER SECTION - Siempre visible
-              _buildHeaderSection(runState),
+    return PopScope(
+      canPop: false, // Disable back button and slide-back gesture
+      child: Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            color: Color.fromARGB(255, 17, 17, 17),
+          ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                // HEADER SECTION - Siempre visible
+                _buildHeaderSection(runState),
 
-              // MAIN CONTENT SECTION
-              if (runState == RunState.fetchingGPS) ...[
-                // UI especial para cuando estamos buscando GPS
-                Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // GPS Status Indicator
-                        Container(
-                          padding: EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
+                // MAIN CONTENT SECTION
+                if (runState == RunState.fetchingGPS) ...[
+                  // UI especial para cuando estamos buscando GPS
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // GPS Status Indicator
+                          Container(
+                            padding: EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: GPSIndicator(),
                           ),
-                          child: GPSIndicator(),
-                        ),
-                        SizedBox(height: 40),
+                          SizedBox(height: 40),
 
-                        // Loading animation
-                        CircularProgressIndicator(
-                          color: const Color(0xFFFFB6C1),
-                          strokeWidth: 3,
-                        ),
-                        SizedBox(height: 20),
+                          // Loading animation
+                          CircularProgressIndicator(
+                            color: const Color(0xFFFFB6C1),
+                            strokeWidth: 3,
+                          ),
+                          SizedBox(height: 20),
 
-                        // Mensaje explicativo
-                        Text(
-                          'Getting GPS signal...',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
+                          // Mensaje explicativo
+                          Text(
+                            'Getting GPS signal...',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Please wait while we locate you',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
+                          SizedBox(height: 8),
+                          Text(
+                            'Please wait while we locate you',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ] else ...[
-                // MAPA - Más pequeño
-                Container(
-                  height:
-                      MediaQuery.of(context).size.height * 0.3, // 30% de altura
-                  child: const Map(),
-                ),
+                ] else ...[
+                  // MAPA - Más pequeño
+                  Container(
+                    height: MediaQuery.of(context).size.height *
+                        0.3, // 30% de altura
+                    child: const Map(),
+                  ),
 
-                // DATOS DEL RUN - Siempre visibles
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        // Tiempo transcurrido - Grande
-                        Text(
-                          elapsedTime,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 48,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-
-                        // Etiqueta de tiempo
-                        Text(
-                          'time',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
-                        ),
-
-                        SizedBox(height: 24),
-
-                        // Distancia y Pace en fila
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            // Distancia
-                            Column(
-                              children: [
-                                Text(
-                                  distance.split(' ')[0], // Solo el número
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  'distance (${distance.split(' ').length > 1 ? distance.split(' ')[1] : 'km'})',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            // Average Pace
-                            Column(
-                              children: [
-                                Text(
-                                  averagePace.split(
-                                      '/')[0], // Solo el tiempo antes del /
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  'avg pace',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-
-                        SizedBox(height: 24),
-
-                        // PaceBar - Solo cuando run está activo Y hay target pace
-                        _buildPaceBarSection(runState),
-
-                        // Prediction Display - Solo cuando hay target pace
-                        _buildPredictionSection(runState),
-
-                        Spacer(),
-
-                        // Botones de control
-                        _buildControlButtons(runState),
-
-                        // Discard run
-                        if (runState == RunState.readyToStart)
-                          OutlinedButton.icon(
-                            onPressed: () => _showDiscardConfirmation(context),
-                            style: OutlinedButton.styleFrom(
-                              backgroundColor: Colors.red.withOpacity(0.75),
-                              foregroundColor: Colors.white,
-                              side: BorderSide(
-                                color: Colors.white.withOpacity(0.30),
-                                width: 1.5,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                              minimumSize: const Size(double.infinity, 44),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12, horizontal: 16),
-                            ),
-                            icon: const Icon(Icons.delete_outline, size: 20),
-                            label: const Text(
-                              'Discard run',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
+                  // DATOS DEL RUN - Siempre visibles
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          // Tiempo transcurrido - Grande
+                          Text(
+                            elapsedTime,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                      ],
+                          SizedBox(height: 8),
+
+                          // Etiqueta de tiempo
+                          Text(
+                            'time',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+
+                          SizedBox(height: 24),
+
+                          // Distancia y Pace en fila
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              // Distancia
+                              Column(
+                                children: [
+                                  Text(
+                                    distance.split(' ')[0], // Solo el número
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    'distance (${distance.split(' ').length > 1 ? distance.split(' ')[1] : 'km'})',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              // Average Pace
+                              Column(
+                                children: [
+                                  Text(
+                                    averagePace.split(
+                                        '/')[0], // Solo el tiempo antes del /
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    'avg pace',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+
+                          SizedBox(height: 24),
+
+                          // PaceBar - Solo cuando run está activo Y hay target pace: APAGADO PARA MVP
+                          //_buildPaceBarSection(runState),
+
+                          // Prediction Display - Solo cuando hay target pace
+                          _buildPredictionSection(runState),
+
+                          Spacer(),
+
+                          // Botones de control
+                          _buildControlButtons(runState),
+
+                          // Discard run
+                          if (runState == RunState.readyToStart)
+                            OutlinedButton.icon(
+                              onPressed: () =>
+                                  _showDiscardConfirmation(context),
+                              style: OutlinedButton.styleFrom(
+                                backgroundColor: Colors.red.withOpacity(0.75),
+                                foregroundColor: Colors.white,
+                                side: BorderSide(
+                                  color: Colors.white.withOpacity(0.30),
+                                  width: 1.5,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                minimumSize: const Size(double.infinity, 44),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 12, horizontal: 16),
+                              ),
+                              icon: const Icon(Icons.delete_outline, size: 20),
+                              label: const Text(
+                                'Discard run',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

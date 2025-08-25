@@ -8,13 +8,15 @@ import 'widgets/distance_provider.dart';
 import 'widgets/custom_pace_provider.dart';
 import 'widgets/custom_distance_provider.dart';
 import 'widgets/readable_pace_provider.dart';
+import 'widgets/inline_goal_input.dart';
+import 'widgets/temp_goal_providers.dart';
 import 'auth_wraper.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 
 // import 'firebase/firebaseWidgets/running_stats.dart';
 
-import '/widgets/pace_selection.dart';
+// import '/widgets/pace_selection.dart'; // Keeping for future use
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -41,6 +43,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // User info section
+                Consumer(builder: (context, refConsumer, _) {
+                  final user = FirebaseAuth.instance.currentUser;
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor:
+                              const Color.fromRGBO(140, 82, 255, 1.0),
+                          child: Text(
+                            user?.email?.substring(0, 1).toUpperCase() ?? 'U',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user?.email ?? 'User',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Logged in',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                const SizedBox(height: 20),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text(
@@ -135,6 +190,80 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Widget _buildRunButton() {
+    // Check if user has set a goal
+    final hasActiveGoal = ref.watch(customDistanceProvider) != null &&
+        ref.watch(customPaceProvider) != null;
+    final goalText = ref.watch(readablePaceProvider);
+    final hasUnconfirmedGoal = ref.watch(hasUnconfirmedGoalProvider);
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        children: [
+          // Run button
+          ElevatedButton(
+            onPressed: () {
+              // If user has unconfirmed goal, set it first
+              if (hasUnconfirmedGoal) {
+                setGoalFromTempSelections(ref, context);
+              }
+              _startRun();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white.withOpacity(0.9),
+              foregroundColor: (hasActiveGoal || hasUnconfirmedGoal)
+                  ? const Color.fromRGBO(140, 82, 255, 1.0)
+                  : Colors.black87,
+              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: (hasActiveGoal || hasUnconfirmedGoal) ? 6 : 4,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  hasUnconfirmedGoal
+                      ? Icons.flag
+                      : hasActiveGoal
+                          ? Icons.track_changes
+                          : Icons.play_arrow,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  hasUnconfirmedGoal
+                      ? 'Set goal and start'
+                      : hasActiveGoal
+                          ? 'Start with goal'
+                          : 'Quick start',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _startRun() {
+    // Reset distance tracking
+    ref.read(distanceProvider.notifier).state = 0.0;
+    ref.read(trackingProvider.notifier).state = true;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CurrentRun()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     //final isTracking = ref.watch(trackingProvider);
@@ -176,73 +305,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(height: 24),
                   Center(
                     child: Image.asset(
-                      'images/pacebud-dark-text-logo.png',
-                      height: 140,
+                      'images/pacebud-horizontal-dark.png',
+                      height: 90,
                     ),
                   ),
                   const SizedBox(height: 32),
-                  // Goal-focused Run
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>
-                                  const PaceSelectionWidget()),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.9),
-                        foregroundColor: Colors.black87,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 18, horizontal: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: const Text(
-                        'Goal-focused Run',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Quick Start Run
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        ref.read(customPaceProvider.notifier).state = null;
-                        ref.read(customDistanceProvider.notifier).state = null;
-                        ref.read(readablePaceProvider.notifier).state = '';
-                        ref.read(distanceProvider.notifier).state = 0.0;
-                        ref.read(trackingProvider.notifier).state = true;
-
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const CurrentRun()),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.9),
-                        foregroundColor: Colors.black87,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 18, horizontal: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: const Text(
-                        'Quick Start',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
+                  // Goal Selection
+                  const InlineGoalInput(),
+                  const SizedBox(height: 24),
+                  // Single Run Button
+                  _buildRunButton(),
                   const SizedBox(height: 32),
                 ],
               ),
