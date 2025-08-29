@@ -14,6 +14,7 @@ import '../../widgets/distance_unit_conversion.dart';
 import '../../widgets/weekly_snapshot.dart';
 import '../../root_shell.dart';
 import '../../auth_wraper.dart';
+import '../../widgets/inline_goal_input.dart';
 
 // import '../../home_screen.dart';
 //import '../../widgets/distance_unit_as_string_provider.dart';
@@ -305,6 +306,8 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
                 Expanded(
                   child: InkWell(
                     onTap: () {
+                      // Clear any active goal so Home is blank when returning
+                      clearGoalProviders(ref);
                       // Navigate back to home and clear the navigation stack
                       Navigator.pushAndRemoveUntil(
                         context,
@@ -757,7 +760,7 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
       if (mounted) {
         _shareExportWithoutBackground.value = false;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Image copied! Paste in Instagram Story.'),
+          content: Text('Copied. Paste in your story :)'),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 2),
         ));

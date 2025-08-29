@@ -226,20 +226,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  hasUnconfirmedGoal
-                      ? Icons.flag
-                      : hasActiveGoal
-                          ? Icons.track_changes
-                          : Icons.play_arrow,
+                  (hasActiveGoal || hasUnconfirmedGoal)
+                      ? Icons.track_changes
+                      : Icons.play_arrow,
                   size: 24,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  hasUnconfirmedGoal
-                      ? 'Set goal and start'
-                      : hasActiveGoal
-                          ? 'Start with goal'
-                          : 'Quick start',
+                  (hasActiveGoal || hasUnconfirmedGoal)
+                      ? 'Start with goal' // Un solo texto para cualquier goal
+                      : 'Quick start',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,

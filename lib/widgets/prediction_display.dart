@@ -5,6 +5,27 @@ import 'projected_finish_provider.dart';
 class PredictionDisplay extends ConsumerWidget {
   const PredictionDisplay({super.key});
 
+  // Helper function to determine text color based on projection vs target
+  Color _getProjectionColor(Map<String, String> prediction) {
+    final difference = prediction['difference'];
+    if (difference == null || difference == '0') {
+      return Colors.white; // Default color for calculating/starting
+    }
+
+    final diffValue = double.tryParse(difference);
+    if (diffValue == null) {
+      return Colors.white; // Default color if parsing fails
+    }
+
+    if (diffValue > 0) {
+      // User is slower than target - show in red
+      return Colors.red;
+    } else {
+      // User is faster than target - show in white
+      return Colors.white;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final prediction = ref.watch(projectedFinishProvider);
@@ -34,8 +55,8 @@ class PredictionDisplay extends ConsumerWidget {
 
           Text(
             prediction['projectedTime'] ?? 'Keep running...',
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: _getProjectionColor(prediction),
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),

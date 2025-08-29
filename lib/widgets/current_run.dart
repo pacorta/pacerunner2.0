@@ -2,15 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:untitled/widgets/elapsed_time_provider.dart';
 import 'dart:async';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
-import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
-import 'package:super_clipboard/super_clipboard.dart';
+
 import 'map.dart';
 import 'tracking_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'speed_provider.dart';
 import 'distance_provider.dart';
+import 'goal_progress_provider.dart';
 import 'stable_average_pace_provider.dart';
 import 'projected_finish_provider.dart';
 import 'prediction_display.dart';
@@ -18,19 +16,19 @@ import 'current_pace_provider.dart';
 import 'pace_bar.dart';
 import 'map_controller_provider.dart';
 
-import '../firebase/firebaseWidgets/running_stats.dart';
-// import '../home_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'distance_unit_as_string_provider.dart';
-import 'current_pace_in_seconds_provider.dart';
 import 'gps_indicator.dart';
 import 'run_state_provider.dart';
 import 'pausable_timer_provider.dart';
 import 'readable_pace_provider.dart';
 import 'custom_pace_provider.dart';
 import 'custom_distance_provider.dart';
-import 'run_summary_card.dart';
+import 'distance_unit_as_string_provider.dart';
+import 'current_pace_in_seconds_provider.dart';
+import 'target_providers.dart';
+import 'distance_unit_provider.dart';
+import 'inline_goal_input.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'run_summary_screen.dart';
 
 import '../services/location_service.dart';
 import 'gps_status_provider.dart';
@@ -47,11 +45,6 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
   Timer? _gpsTimeoutTimer;
   bool _hasTransitioned = false; //Para evitar transiciones múltiples
   DateTime? _runStartTime;
-  final GlobalKey _repaintBoundaryKey = GlobalKey();
-  // Controls whether the summary is rendered without the dark card background
-  // while exporting to clipboard. Using ValueNotifier so the dialog subtree
-  // (separate route) rebuilds when toggled.
-  final ValueNotifier<bool> _exportWithoutBackground = ValueNotifier(false);
 
   @override
   void initState() {
@@ -153,6 +146,16 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     print('CurrentRun: Starting run...');
     ref.read(runStateProvider.notifier).state = RunState.running;
     ref.read(pausableTimerProvider.notifier).start();
+
+    // Record goal mode at start
+    final hasDistance = ref.read(customDistanceProvider) != null;
+    final hasPace = ref.read(customPaceProvider) != null;
+    final hasDistanceTimeGoal = hasDistance && hasPace;
+    ref.read(hadDistanceTimeGoalProvider.notifier).state = hasDistanceTimeGoal;
+    ref.read(hadDistanceOnlyGoalProvider.notifier).state =
+        hasDistance && !hasPace;
+    // Time-only: we represent it by having neither distance nor pace
+    ref.read(hadTimeOnlyGoalProvider.notifier).state = !hasDistance && !hasPace;
   }
 
   @override
@@ -242,180 +245,24 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
       'timestamp': FieldValue.serverTimestamp(),
     };
 
-    // Show the alert dialog with summary stats
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // RepaintBoundary wraps the card for future PNG export
-            ValueListenableBuilder<bool>(
-              valueListenable: _exportWithoutBackground,
-              builder: (context, hideBackground, _) {
-                return RepaintBoundary(
-                  key: _repaintBoundaryKey,
-                  child: RunSummaryCard(
-                    mapSnapshot: mapSnapshot,
-                    distance: distance.toString(),
-                    pace: finalPace,
-                    time: finalTime,
-                    distanceUnit: distanceUnitString,
-                    showCardBackground: !hideBackground,
-                  ),
-                );
-              },
-            ),
-
-            const SizedBox(height: 24),
-
-            // Buttons below the card (outside of RepaintBoundary)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  // Save run button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        //(1) Reset Providers (tracking ya está en false)
-                        ref.read(distanceProvider.notifier).state = 0.0;
-                        ref.read(speedProvider.notifier).state = 0.0;
-                        ref.read(elapsedTimeProvider.notifier).state =
-                            '00:00:00';
-                        resetCurrentPaceInSecondsProvider();
-                        resetCurrentPaceProvider();
-                        resetStableAveragePace(ref);
-                        resetPredictionProviders(ref);
-
-                        //(2) Pop Dialog and Navigate to Running Stats Page with NO transitions
-                        Navigator.of(context).pop();
-                        Navigator.push(
-                          context,
-                          PageRouteBuilder(
-                            pageBuilder:
-                                (context, animation, secondaryAnimation) =>
-                                    RunningStatsPage(newRunData: runData),
-                            transitionsBuilder: (context, animation,
-                                secondaryAnimation, child) {
-                              return child; // No transition, just show the page
-                            },
-                            transitionDuration: Duration.zero,
-                            reverseTransitionDuration: Duration.zero,
-                          ),
-                        );
-
-                        //(3) Save the run data to Firebase
-                        final user = FirebaseAuth.instance.currentUser;
-                        if (user != null) {
-                          FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(user.uid)
-                              .collection('runs')
-                              .add(runData)
-                              .then((_) {
-                            debugPrint('Run saved successfully');
-                          }).catchError((error) {
-                            debugPrint('Error saving run: $error');
-                          });
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                      child: const Text(
-                        'Save run',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Share run button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _copyToClipboard,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-
-                      /* child: Column(
-                      children: const [
-                        Text('Goal-focused Run'),
-                        Text(
-                          'Best for 5k+/3.1mi runs',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                      child: const Text(
-                        'Share run',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600),
-                      ),
-                      */
-                      child: Column(
-                        children: [
-                          Text(
-                            'Share run',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            'Share with the map (one time only)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white70,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Discard run button (smaller, red, discrete)
-                  TextButton(
-                    onPressed: () => _showDiscardConfirmation(context,
-                        closeMainDialog: true),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 8, horizontal: 16),
-                    ),
-                    child: const Text(
-                      'Discard run',
-                      style: TextStyle(fontSize: 14),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+    // Navigate to RunSummaryScreen instead of showing dialog
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            RunSummaryScreen(
+          mapSnapshot: mapSnapshot,
+          distance: distance,
+          distanceUnitString: distanceUnitString,
+          finalTime: finalTime,
+          finalPace: finalPace,
+          runStartTime: _runStartTime,
         ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return child; // No transition, just show the page
+        },
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
       ),
     );
   }
@@ -489,6 +336,11 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                 resetStableAveragePace(ref);
                 resetPredictionProviders(ref);
 
+                // Clear any active goal so Home shows blank after discard
+                try {
+                  clearGoalProviders(ref);
+                } catch (_) {}
+
                 // Clear route-related shared state to avoid stale polylines
                 try {
                   ref.read(locationsProvider.notifier).state = [];
@@ -511,70 +363,35 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     );
   }
 
-  // Copy run summary to clipboard as PNG
-  Future<void> _copyToClipboard() async {
-    try {
-      // Render once without the card background so the exported image
-      // can be pasted over photos (Instagram stories, etc.).
-      _exportWithoutBackground.value = true;
-      // Wait one frame so the widget rebuilds without background
-      await Future.delayed(const Duration(milliseconds: 16));
-
-      // Get the RepaintBoundary
-      final RenderRepaintBoundary boundary = _repaintBoundaryKey.currentContext!
-          .findRenderObject() as RenderRepaintBoundary;
-
-      // Capture as image with high quality
-      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-
-      // Convert to PNG bytes
-      final ByteData? byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
-      final Uint8List pngBytes = byteData!.buffer.asUint8List();
-
-      // Copy PNG bytes to system clipboard (not base64 text)
-      final clipboard = SystemClipboard.instance;
-      if (clipboard == null) {
-        throw Exception('Clipboard not available on this platform');
-      }
-      final item = DataWriterItem();
-      item.add(Formats.png(pngBytes));
-      await clipboard.write([item]);
-
-      // Restore background for on-screen dialog
-      if (mounted) {
-        _exportWithoutBackground.value = false;
-      }
-
-      // Show confirmation
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Image copied! Paste in your story.'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      print('Error copying to clipboard: $e');
-      if (mounted) {
-        _exportWithoutBackground.value = false;
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to copy image'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final runState = ref.watch(runStateProvider);
+
+    // Listen for distance crossing the target distance to capture first reach time
+    ref.listen<double>(distanceProvider, (previous, current) {
+      final targetDistance = ref.read(targetDistanceProvider);
+      final unit = ref.read(distanceUnitProvider);
+      final alreadyCaptured =
+          ref.read(firstReachTargetTimeSecondsProvider) != null;
+
+      if (targetDistance == null || alreadyCaptured) {
+        return;
+      }
+
+      // Convert target distance to km to compare with distanceProvider (km)
+      double targetDistanceKm = targetDistance;
+      if (unit == DistanceUnit.miles) {
+        targetDistanceKm = targetDistance * 1.60934;
+      }
+
+      final prev = previous ?? 0.0;
+      if (prev < targetDistanceKm && current >= targetDistanceKm) {
+        final secs = ref.read(elapsedTimeInSecondsProvider);
+        final str = ref.read(formattedElapsedTimeProvider);
+        ref.read(firstReachTargetTimeSecondsProvider.notifier).state = secs;
+        ref.read(firstReachTargetTimeStringProvider.notifier).state = str;
+      }
+    });
 
     // GPS listener DENTRO del build method
     ref.listen(gpsStatusProvider, (previous, next) {

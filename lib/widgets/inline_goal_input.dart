@@ -8,6 +8,7 @@ import 'temp_goal_providers.dart';
 import 'cupertino_duration_picker.dart';
 import 'cupertino_distance_picker.dart';
 import 'goal_type_provider.dart';
+import 'time_goal_provider.dart';
 
 class InlineGoalInput extends ConsumerStatefulWidget {
   const InlineGoalInput({super.key});
@@ -82,6 +83,8 @@ void setGoalFromTempSelections(WidgetRef ref, BuildContext context) {
     // Distance-only goal
     ref.read(customDistanceProvider.notifier).state = selectedDistance;
     ref.read(customPaceProvider.notifier).state = null; // No pace target
+    ref.read(timeOnlyGoalSecondsProvider.notifier).state =
+        null; // clear time-only
 
     final unitLabel = unit == DistanceUnit.kilometers ? 'km' : 'mi';
     ref.read(readablePaceProvider.notifier).state =
@@ -91,10 +94,25 @@ void setGoalFromTempSelections(WidgetRef ref, BuildContext context) {
     ref.read(customDistanceProvider.notifier).state =
         null; // No distance target
     ref.read(customPaceProvider.notifier).state = null; // No pace target
+    ref.read(timeOnlyGoalSecondsProvider.notifier).state =
+        selectedTime.inSeconds.toDouble();
 
     ref.read(readablePaceProvider.notifier).state =
         'Run ${_formatDurationSimpleGlobal(selectedTime)}';
   }
+}
+
+// Función global para limpiar TODO el estado relacionado al goal
+// Úsala al finalizar o descartar una corrida para que Home quede sin objetivo activo
+void clearGoalProviders(WidgetRef ref) {
+  // Limpiar selecciones temporales del input
+  ref.read(tempSelectedDistanceProvider.notifier).state = null;
+  ref.read(tempSelectedTimeProvider.notifier).state = null;
+
+  // Limpiar objetivo activo (distance/pace) y su texto legible
+  ref.read(customDistanceProvider.notifier).state = null;
+  ref.read(customPaceProvider.notifier).state = null;
+  ref.read(readablePaceProvider.notifier).state = '';
 }
 
 String _formatReadablePaceGlobal(
@@ -167,6 +185,7 @@ class _InlineGoalInputState extends ConsumerState<InlineGoalInput> {
     ref.read(tempSelectedTimeProvider.notifier).state = null;
     ref.read(customDistanceProvider.notifier).state = null;
     ref.read(customPaceProvider.notifier).state = null;
+    ref.read(timeOnlyGoalSecondsProvider.notifier).state = null;
     ref.read(readablePaceProvider.notifier).state = '';
   }
 
