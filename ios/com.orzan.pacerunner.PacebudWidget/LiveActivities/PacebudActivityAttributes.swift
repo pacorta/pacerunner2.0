@@ -19,6 +19,10 @@ struct PacebudActivityAttributes: ActivityAttributes {
         var goal: String?
         var predictedFinish: String?
         var differenceSeconds: Int?
+        // Progress fields
+        var progress: Double?
+        var progressKind: String?
+        var progressLabel: String?
     }
 
     // Fixed non-changing properties about your activity

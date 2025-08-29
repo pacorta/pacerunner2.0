@@ -13,6 +13,10 @@ struct PacebudActivityAttributes: ActivityAttributes {
         var goal: String?
         var predictedFinish: String?
         var differenceSeconds: Int?
+        // Progress fields
+        var progress: Double?
+        var progressKind: String?
+        var progressLabel: String?
     }
     
     var activityName: String
@@ -68,7 +72,10 @@ public class LiveActivityChannel: NSObject, FlutterPlugin {
             isRunning: true,
             goal: nil,
             predictedFinish: nil,
-            differenceSeconds: nil
+            differenceSeconds: nil,
+            progress: nil,
+            progressKind: nil,
+            progressLabel: nil
         )
         
         do {
@@ -105,6 +112,9 @@ public class LiveActivityChannel: NSObject, FlutterPlugin {
         let goal = args["goal"] as? String
         let predictedFinish = args["predictedFinish"] as? String
         let differenceSeconds = args["differenceSeconds"] as? Int
+        let progress = args["progress"] as? Double
+        let progressKind = args["progressKind"] as? String
+        let progressLabel = args["progressLabel"] as? String
         
         let newState = PacebudActivityAttributes.ContentState(
             distance: distance,
@@ -114,12 +124,15 @@ public class LiveActivityChannel: NSObject, FlutterPlugin {
             isRunning: isRunning,
             goal: goal,
             predictedFinish: predictedFinish,
-            differenceSeconds: differenceSeconds
+            differenceSeconds: differenceSeconds,
+            progress: progress,
+            progressKind: progressKind,
+            progressLabel: progressLabel
         )
         
         Task {
             await activity.update(using: newState)
-            print("LiveActivity: Updated with distance: \(distance) \(distanceUnit)")
+            print("LiveActivity: Updated with distance: \(distance) \(distanceUnit), progress: \(String(describing: newState.progress))")
         }
         
         result(true)
@@ -141,7 +154,10 @@ public class LiveActivityChannel: NSObject, FlutterPlugin {
                 isRunning: false,
                 goal: activity.contentState.goal,
                 predictedFinish: activity.contentState.predictedFinish,
-                differenceSeconds: activity.contentState.differenceSeconds
+                differenceSeconds: activity.contentState.differenceSeconds,
+                progress: activity.contentState.progress,
+                progressKind: activity.contentState.progressKind,
+                progressLabel: activity.contentState.progressLabel
             )
             
             await activity.end(using: finalState, dismissalPolicy: .immediate)

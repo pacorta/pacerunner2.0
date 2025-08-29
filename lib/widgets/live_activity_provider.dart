@@ -10,6 +10,8 @@ import 'run_state_provider.dart';
 import 'projected_finish_provider.dart';
 import 'target_providers.dart';
 import 'time_difference_provider.dart';
+import 'time_goal_provider.dart';
+import 'custom_pace_provider.dart';
 
 // Provider to manage Live Activity state
 final liveActivityProvider =
@@ -125,23 +127,89 @@ class LiveActivityNotifier extends StateNotifier<bool> {
       final runState = _ref.read(runStateProvider);
       final isRunning = runState == RunState.running;
 
-      // Build goal and predicted finish strings if available
-      final targetDistance = _ref.read(targetDistanceProvider);
-      final targetTimeFormatted = _ref.read(formattedTargetTimeProvider);
+      // Goal typing and labels
+      final targetDistance =
+          _ref.read(targetDistanceProvider); // complex or distance-only
+      final timeOnlySeconds =
+          _ref.read(timeOnlyGoalSecondsProvider); // time-only
+      final targetTimeFormatted =
+          _ref.read(formattedTargetTimeProvider); // for complex
+
       String? goal;
-      if (targetDistance != null) {
-        goal =
-            "${targetDistance.toStringAsFixed(1)} $distanceUnitString in $targetTimeFormatted";
-      }
-      final projection = _ref.read(projectedFinishProvider);
-      String? predictedFinish = projection["projectedTime"];
-      // Use centralized provider for difference seconds (positive=behind)
-      final differenceSeconds = _ref.read(timeDifferenceSecondsProvider);
+      String? predictedFinish;
+      int? differenceSeconds;
+
+      // Progress fields
+      double? progress;
+      String? progressKind;
+      String? progressLabel;
 
       // Convert distance to proper unit for display
       double displayDistance = distance;
       if (distanceUnit == DistanceUnit.miles) {
         displayDistance = kilometersToMiles(distance);
+      }
+
+      // Decide behavior based on goal type
+      final hasComplex =
+          targetDistance != null && _ref.read(customPaceProvider) != null;
+      final hasDistanceOnly =
+          targetDistance != null && _ref.read(customPaceProvider) == null;
+      final hasTimeOnly = timeOnlySeconds != null;
+
+      if (hasComplex) {
+        // Distance + Time goal
+        final double td = targetDistance ?? 0.0;
+        goal =
+            "${td.toStringAsFixed(1)} $distanceUnitString in $targetTimeFormatted";
+        final projection = _ref.read(projectedFinishProvider);
+        predictedFinish = projection["projectedTime"];
+        differenceSeconds = _ref.read(timeDifferenceSecondsProvider);
+
+        // Progress based on distance
+        if (td > 0) {
+          progress = (displayDistance / td).clamp(0.0, 1.0);
+          progressKind = "distance";
+          progressLabel =
+              "${displayDistance.toStringAsFixed(1)}/${td.toStringAsFixed(1)} $distanceUnitString";
+        }
+      } else if (hasDistanceOnly) {
+        // Distance-only goal
+        final double td = targetDistance ?? 0.0;
+        goal = "Run ${td.toStringAsFixed(1)} $distanceUnitString";
+        predictedFinish = null;
+        differenceSeconds = null;
+
+        if (td > 0) {
+          progress = (displayDistance / td).clamp(0.0, 1.0);
+          progressKind = "distance";
+          progressLabel =
+              "${displayDistance.toStringAsFixed(1)}/${td.toStringAsFixed(1)} $distanceUnitString";
+        }
+      } else if (hasTimeOnly) {
+        // Time-only goal
+        final elapsedSeconds = _ref.read(elapsedTimeInSecondsProvider);
+        final double tos = timeOnlySeconds ?? 0.0;
+        // Label for time-only goal
+        goal = "${_formatSimpleTime(tos)} run";
+        predictedFinish = null;
+        differenceSeconds = null;
+
+        if (tos > 0) {
+          progress = (elapsedSeconds / tos).clamp(0.0, 1.0);
+          progressKind = "time";
+          final elapsedFmt = _ref.read(formattedElapsedTimeProvider);
+          final targetFmt = _formatSimpleTime(tos);
+          progressLabel = "$elapsedFmt/$targetFmt";
+        }
+      } else {
+        // Quick run (no goal)
+        goal = null;
+        predictedFinish = null;
+        differenceSeconds = null;
+        progress = null;
+        progressKind = null;
+        progressLabel = null;
       }
 
       final success = await LiveActivityService.updateRunningActivity(
@@ -153,6 +221,9 @@ class LiveActivityNotifier extends StateNotifier<bool> {
         goal: goal,
         predictedFinish: predictedFinish,
         differenceSeconds: differenceSeconds,
+        progress: progress,
+        progressKind: progressKind,
+        progressLabel: progressLabel,
       );
 
       if (!success) {
@@ -161,6 +232,20 @@ class LiveActivityNotifier extends StateNotifier<bool> {
     } catch (e) {
       print('Error updating Live Activity: $e');
     }
+  }
+
+  String _formatSimpleTime(double seconds) {
+    final total = seconds.floor();
+    final hours = total ~/ 3600;
+    final minutes = (total % 3600) ~/ 60;
+    final secs = total % 60;
+    if (hours > 0) {
+      return minutes > 0 ? '${hours}h ${minutes}m' : '${hours}h';
+    }
+    if (minutes > 0) {
+      return secs > 0 && minutes < 5 ? '${minutes}m ${secs}s' : '${minutes}m';
+    }
+    return '${secs}s';
   }
 
   Future<void> _endLiveActivity() async {

@@ -119,20 +119,37 @@ struct com_orzan_pacerunner_PacebudWidgetLiveActivity: Widget {
                     .layoutPriority(1)
                     Spacer()
                 }
-                // Bottom projection row
-                HStack {
-                    Spacer()
-                    Text("Proj. Finish:")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.75))
-                    let isOverBottom = (context.state.differenceSeconds ?? 0) > 0
-                    Text(projectionNoSec ?? "--")
-                        .font(.headline)
-                        .fontWeight(.bold)
-                        .monospacedDigit()
-                        .foregroundColor(isOverBottom ? .red : .white)
-                        .lineLimit(1)
-                    Spacer()
+                // Bottom projection row (only for complex goals)
+                if context.state.predictedFinish != nil {
+                    HStack {
+                        Spacer()
+                        Text("Proj. Finish:")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.75))
+                        let isOverBottom = (context.state.differenceSeconds ?? 0) > 0
+                        Text(projectionNoSec ?? "--")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .monospacedDigit()
+                            .foregroundColor(isOverBottom ? .red : .white)
+                            .lineLimit(1)
+                        Spacer()
+                    }
+                }
+
+                // Thin bottom progress bar (full width, not thick)
+                if let p = context.state.progress {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.white.opacity(0.15))
+                                .frame(height: 6)
+                            Capsule()
+                                .fill(Color.white)
+                                .frame(width: max(0, min(CGFloat(p), 1.0)) * geo.size.width, height: 6)
+                        }
+                    }
+                    .frame(height: 6)
                 }
             }
             .padding(.horizontal, 16)

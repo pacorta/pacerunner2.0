@@ -24,6 +24,9 @@ class LiveActivityService {
     String? goal,
     String? predictedFinish,
     int? differenceSeconds,
+    double? progress,
+    String? progressKind,
+    String? progressLabel,
   }) async {
     try {
       final result = await _channel.invokeMethod('updateRunningActivity', {
@@ -35,6 +38,9 @@ class LiveActivityService {
         'goal': goal,
         'predictedFinish': predictedFinish,
         'differenceSeconds': differenceSeconds,
+        'progress': progress,
+        'progressKind': progressKind,
+        'progressLabel': progressLabel,
       });
       return result == true;
     } on PlatformException catch (e) {
