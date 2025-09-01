@@ -5,7 +5,6 @@ plugins {
     id 'com.google.gms.google-services'
 }
 
-apply from: rootProject.file("dotenv.gradle") //This is a Gradle script that reads the .env file and makes its contents available as a map in the project.
 
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file("local.properties")
@@ -24,9 +23,9 @@ def flutterVersionName = localProperties.getProperty("flutter.versionName")
 if (flutterVersionName == null) {
     flutterVersionName = "1.0"
 }
-
+//switched from com.example.untitled to com.orzan.pacerunner
 android {
-    namespace = "com.example.untitled"
+    namespace = "com.orzan.pacerunner"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -36,17 +35,11 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.untitled"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        // super_clipboard requires minSdkVersion 23 for image clipboard support
+        applicationId = "com.orzan.pacerunner"
         minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
-
-        buildConfigField "String", "GOOGLE_MAPS_API_KEY", "\"${env.GOOGLE_MAPS_API_KEY}\"" //This is the Google Maps API key for the Android side.
     }
     
 

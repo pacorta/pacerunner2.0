@@ -1,0 +1,90 @@
+{
+  "project_info": {
+    "project_number": "1051561767754",
+    "project_id": "pacerunner-backend",
+    "storage_bucket": "pacerunner-backend.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1051561767754:android:f7cac1bcfb57c56b4307b3",
+        "android_client_info": {
+          "package_name": "com.orzan"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1051561767754-3qs5d0cgcravn463mgv98308qafmdqbs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCS_f1S8Ur6bTDr01hqbf29b6h2i1p3Kxk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1051561767754-3qs5d0cgcravn463mgv98308qafmdqbs.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1051561767754-cmrm01dde80s8coip7411e33c6n2i801.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.orzan.pacerunner"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1051561767754:android:cc95aebacc809b484307b3",
+        "android_client_info": {
+          "package_name": "com.orzan.pacerunner"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1051561767754-s8c7efc76a9ugituhpenb7k6un654cgd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.orzan.pacerunner",
+            "certificate_hash": "59f16ea2f96aa60b52ba557e2cd1e17e00c983cf"
+          }
+        },
+        {
+          "client_id": "1051561767754-3qs5d0cgcravn463mgv98308qafmdqbs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCS_f1S8Ur6bTDr01hqbf29b6h2i1p3Kxk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1051561767754-3qs5d0cgcravn463mgv98308qafmdqbs.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1051561767754-cmrm01dde80s8coip7411e33c6n2i801.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.orzan.pacerunner"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

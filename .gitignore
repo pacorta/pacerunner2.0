@@ -46,16 +46,10 @@ app.*.map.json
 
 .env
 
-# Firebase config files
-**/GoogleService-Info.plist
-!**/GoogleService-Info.plist.example
-**/google-services.json
-!**/google-services.json.example
-**/firebase_options.dart
-!**/firebase_options.dart.example
-
-# GoogleService-Info.plist
-ios/Runner/GoogleService-Info.plist
+# Firebase config files (track real configs; keep examples if present)
+#!**/GoogleService-Info.plist.example
+#!**/google-services.json.example
+#!**/firebase_options.dart.example
 
 /ios/vendor/
 /ios/Gemfile.lock

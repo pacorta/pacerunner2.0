@@ -11,9 +11,13 @@ import GoogleSignIn
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
 
-    //GMSServices.provideAPIKey(Bundle.main.object(forInfoDictionaryKey: "GoogleMapsApiKey") as? String ?? "")
-    GMSServices.provideAPIKey("GOOGLE_MAPS_API_KEY")
-    //GMSServices.provideAPIKey(ProcessInfo.processInfo.environment["GOOGLE_MAPS_API_KEY"] ?? "")
+    // Leer GoogleMapsApiKey desde Info.plist
+    let apiKey = Bundle.main.object(forInfoDictionaryKey: "GoogleMapsApiKey") as? String ?? ""
+    if !apiKey.isEmpty {
+      GMSServices.provideAPIKey(apiKey)
+    } else {
+      NSLog("Google Maps API key missing. Check Info.plist 'GoogleMapsApiKey'.")
+    }
 
     // Registrar tu canal nativo (coincide con tu MethodChannel en Dart)
     LocationManagerChannel.register(

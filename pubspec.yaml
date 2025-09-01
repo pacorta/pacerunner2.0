@@ -104,7 +104,6 @@ flutter:
     - images/bud.gif
     - images/bud-pause.gif
     - images/pacebud-head-only-logo.png
-    - .env
 
   #   - images/a_dot_ham.jpeg
 

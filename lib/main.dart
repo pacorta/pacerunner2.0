@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:untitled/auth_wraper.dart';
 import 'root_shell.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase/firebase_options.dart';
 
 //import 'home_screen.dart';
@@ -15,12 +14,7 @@ void main() async {
     WidgetsFlutterBinding.ensureInitialized();
     print('Flutter binding initialized');
 
-    try {
-      await dotenv.load(fileName: ".env");
-      print('Environment variables loaded');
-    } catch (e) {
-      print('No .env file found, continuing without it: $e');
-    }
+    print('Using hardcoded Firebase configuration');
 
     // Check if Firebase is already initialized
     if (Firebase.apps.isEmpty) {

@@ -3,7 +3,6 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
@@ -22,10 +21,7 @@ class DefaultFirebaseOptions {
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for android - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return android;
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
@@ -47,31 +43,39 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static final FirebaseOptions web = FirebaseOptions(
-    apiKey: dotenv.env['FIREBASE_WEB_API_KEY'] ?? '',
-    appId: dotenv.env['FIREBASE_WEB_APP_ID'] ?? '',
-    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID'] ?? '',
-    projectId: dotenv.env['FIREBASE_PROJECT_ID'] ?? '',
-    authDomain: dotenv.env['FIREBASE_AUTH_DOMAIN'] ?? '',
-    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'] ?? '',
-    measurementId: dotenv.env['FIREBASE_MEASUREMENT_ID'] ?? '',
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyCbxvnHQks3wiX9vjVK9AYnPi06LbGI3Kk',
+    appId: '1:1051561767754:web:76a90a76f48bb58a4307b3',
+    messagingSenderId: '1051561767754',
+    projectId: 'pacerunner-backend',
+    authDomain: 'pacerunner-backend.firebaseapp.com',
+    storageBucket: 'pacerunner-backend.firebasestorage.app',
+    measurementId: 'G-247964MX9Q',
   );
 
-  static final FirebaseOptions ios = FirebaseOptions(
-    apiKey: dotenv.env['FIREBASE_API_KEY'] ?? '',
-    appId: dotenv.env['FIREBASE_IOS_APP_ID'] ?? '',
-    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID'] ?? '',
-    projectId: dotenv.env['FIREBASE_PROJECT_ID'] ?? '',
-    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'] ?? '',
-    iosBundleId: dotenv.env['FIREBASE_IOS_BUNDLE_ID'] ?? '',
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyCS_f1S8Ur6bTDr01hqbf29b6h2i1p3Kxk',
+    appId: '1:1051561767754:android:cc95aebacc809b484307b3',
+    messagingSenderId: '1051561767754',
+    projectId: 'pacerunner-backend',
+    storageBucket: 'pacerunner-backend.firebasestorage.app',
   );
 
-  static final FirebaseOptions macos = FirebaseOptions(
-    apiKey: dotenv.env['FIREBASE_API_KEY'] ?? '',
-    appId: dotenv.env['FIREBASE_IOS_APP_ID'] ?? '',
-    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID'] ?? '',
-    projectId: dotenv.env['FIREBASE_PROJECT_ID'] ?? '',
-    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'] ?? '',
-    iosBundleId: dotenv.env['FIREBASE_IOS_BUNDLE_ID'] ?? '',
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyBmle7gjZL5wMGladrEEjygTEytbv5H7dg',
+    appId: '1:1051561767754:ios:62d6231d0315b5514307b3',
+    messagingSenderId: '1051561767754',
+    projectId: 'pacerunner-backend',
+    storageBucket: 'pacerunner-backend.firebasestorage.app',
+    iosBundleId: 'com.orzan.pacerunner',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyBmle7gjZL5wMGladrEEjygTEytbv5H7dg',
+    appId: '1:1051561767754:ios:62d6231d0315b5514307b3',
+    messagingSenderId: '1051561767754',
+    projectId: 'pacerunner-backend',
+    storageBucket: 'pacerunner-backend.firebasestorage.app',
+    iosBundleId: 'com.orzan.pacerunner',
   );
 }

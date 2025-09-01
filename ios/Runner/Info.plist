@@ -57,9 +57,9 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
-	<key>NSSupportsLiveActivities</key>
-	<true/>
-	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
-	<true/>
+    <key>NSSupportsLiveActivitiesFrequentUpdates</key>
+    <true/>
+    <key>GoogleMapsApiKey</key>
+    <string>AIzaSyAi8f9YzcNMbJM4v7U-DPcTwPFBGyYC3S0</string>
 </dict>
 </plist>

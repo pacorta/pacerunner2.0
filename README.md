@@ -1,68 +1,58 @@
-# Pacebud Progress Log: August 29
+# Pacebud Progress Log: August 31st
 
-## Progress Bar in Live Activity
+## Google Maps Authentication Problem
 
-Implemented a native iOS progress bar in Live Activities that dynamically shows user progress toward their running goals, with intelligent display logic based on goal type.
+### What Was Happening
+My app was showing a blank map with just a blue dot (no streets, no details). Users could see their location but the map tiles weren't loading.
 
----
+For a long time I've been wondering how to launch this if I am using .env files. I now discovered that **client-side API keys (Google Maps, Firebase Web) are not actually secrets**. I had been treating them like passwords, hiding them in `.env` files and thinking this made my app secure.
 
-### What Was Built
+The real security comes from **restrictions set in the Google Cloud Console**; things like Bundle ID restrictions, package name restrictions, and SHA fingerprint requirements prevent other apps from using the keys, even if they're visible in code.
 
-- **iOS Models Extension**: Added `progress`, `progressKind`, and `progressLabel` fields to `PacebudActivityAttributes.ContentState` in both Runner and Widget targets
-- **Flutter Bridge Update**: Extended `LiveActivityService.updateRunningActivity(...)` to include progress fields in the method channel payload
-- **Smart Goal Detection**: Enhanced `live_activity_provider.dart` to automatically detect goal types and compute appropriate progress:
-  - **Complex goals** (distance + time): Shows goal + projection + distance-based progress bar
-  - **Distance-only goals**: Shows "X km run" + distance-based progress bar (no projection)
-  - **Time-only goals**: Shows "X min run" + time-based progress bar (no projection)
-  - **Quick runs**: No goal, no projection, no progress bar
-- **SwiftUI Progress Bar**: Added progress bar at bottom of Live Activity that fills based on current progress toward target
+In `AppDelegate.swift`: I was passing a literal string `"GOOGLE_MAPS_API_KEY"` instead of the actual API key. Google Maps couldn't authenticate, so it showed blank tiles.
 
----
+Steps I took:
+1. Put the real API key in `Info.plist` 
+2. Read it from there in `AppDelegate.swift` instead of using a literal
+3. Ensure the key is restricted to my Bundle ID (`com.orzan.pacerunner`) in Google Cloud
 
-### Technical Implementation
+### Why APIs Are Now "Exposed" (And Why It's Safe)
+I moved from using `.env` files to hardcoding the keys directly in the appropriate platform files:
+- **iOS**: `Info.plist` + `AppDelegate.swift`
+- **Android**: `AndroidManifest.xml` 
+- **Firebase**: `firebase_options.dart`
 
-- **Progress Calculation**:
-  - Distance progress: `currentDistance / targetDistance` (clamped 0.0-1.0)
-  - Time progress: `elapsedSeconds / targetSeconds` (clamped 0.0-1.0)
-  - Progress labels: "2.3/5.0 km" or "12:34/30:00" format
-- **Goal Label Logic**:
-  - Complex: "5.0 km in 25m 00s"
-  - Distance-only: "Run 5.0 km"
-  - Time-only: "30m run"
-- **Projection Gating**: Projection row only shows for complex goals; hidden for simple goals to reduce UI clutter
-- **Progress Bar Rendering**: Uses SwiftUI `GeometryReader` with `Capsule()` shapes for smooth, native iOS appearance
+Exposing these feels wrong at first, but it's actually the standard approach. The keys are protected by:
+- **Bundle ID restrictions** (iOS)
+- **Package name + SHA fingerprint restrictions** (Android)  
+- **Billing requirements** (Google Cloud)
 
----
+### How security is matained
+- **Google Maps iOS key**: Only works with apps having the right Bundle ID.
+- **Google Maps Android key**: Only works with my package + specific SHA fingerprints
+- **Firebase keys**: Restricted to the same identifiers
+- **Billing**: My Google Cloud project has billing enabled, so Google knows who to charge
 
-### Data Flow
+### Current Issues (Non-crucial)
+- **UI unresponsiveness warnings**: LocationManager calls on main thread
+  - *Impact*: Minor performance warning, doesn't affect functionality
+  - *Fix*: Migrate to `locationManagerDidChangeAuthorization` callback
+- **CoreData warnings**: Google Maps SDK internal warnings
+  - *Impact*: None - SDK internal issue
+- **Multiple CCTClearcutUploader instances**: SDK initialization warning
+  - *Impact*: Minor battery performance, doesn't affect functionality
 
-1. **Flutter**: `live_activity_provider.dart` detects goal type and computes progress
-2. **Bridge**: `LiveActivityService` sends progress data via method channel
-3. **iOS**: `LiveActivityChannel.swift` receives and stores progress in `ContentState`
-4. **SwiftUI**: Widget renders progress bar when `progress != nil`, hides projection when `predictedFinish == nil`
+According to an AI model, these are mostly noise from the iOS simulator and SDK internals. They don't break the app or compromise security.
 
----
+### Summary
+- **Problem**: Hardcoded literal in iOS code prevented Google Maps authentication
+- **Solution**: Proper key injection via `Info.plist` + correct Google Cloud restrictions
+- **Result**: Map loads correctly, all APIs are secure, app ready for production
+- **Security**: Keys are "exposed" but properly restricted - this is the standard approach
+
 
 ### What's Next
-- Fix “Google Maps Authentication Failed”
-    - After the loading of GPS, there's another loading screen. I think this might be solved with fixing this alert.
-    - I hope this fix will also make these errors disappear:
-```
-flutter: LocationService: Starting location tracking...
- This method can cause UI unresponsiveness if invoked on the main thread. Instead, consider waiting for the `-locationManagerDidChangeAuthorization:` callback and checking `authorizationStatus` first.
-flutter: LocationService: "Always" permission already granted.
- This method can cause UI unresponsiveness if invoked on the main thread. Instead, consider waiting for the `-locationManagerDidChangeAuthorization:` callback and checking `authorizationStatus` first.
- This method can cause UI unresponsiveness if invoked on the main thread. Instead, consider waiting for the `-locationManagerDidChangeAuthorization:` callback and checking `authorizationStatus` first.
-```
-- Fix goal displays (some say 'distance IN time', should say 'distance UNDER time').
-- Sound effects for goal achievements.
-- Save user's goal to the database.
-- Save whether the user met their goal or not.
-- Modify the weekly line chart to handle month and year.
-- Maybe: Add weather data in home screen (there's a lot of dead space that I need to fill according to my friend Tristan). I'll see how viable it is to add this; most likely easy.
-- Maybe: split average pace data during run
-    - Split average pace line chart inside run info.
-- Maybe: calories and other common data inside the run info.
-
+- Fix loading times, map loading has been taking forever in physical device
+- 
 ---
 #### (For earlier logs, see `PAST-LOGS.md`)

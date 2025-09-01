@@ -9,7 +9,7 @@
         android:icon="@mipmap/ic_launcher">
         <provider
             android:name="com.superlist.super_native_extensions.DataProvider"
-            android:authorities="com.example.untitled.SuperClipboardDataProvider"
+            android:authorities="com.orzan.pacerunner.SuperClipboardDataProvider"
             android:exported="true"
             android:grantUriPermissions="true" />
         <activity
@@ -41,7 +41,7 @@
             android:value="2" />
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="${GOOGLE_MAPS_API_KEY}" />   <!--Added ${} syntax to access the variable-->
+            android:value="AIzaSyBJbeyuMwrQb_0vYTm5fKxuGDdnxnL4wM0" /> 
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
