@@ -59,6 +59,8 @@
 	</array>
     <key>NSSupportsLiveActivitiesFrequentUpdates</key>
     <true/>
+    <key>NSSupportsLiveActivities</key>
+    <true/>
     <key>GoogleMapsApiKey</key>
     <string>AIzaSyAi8f9YzcNMbJM4v7U-DPcTwPFBGyYC3S0</string>
 </dict>

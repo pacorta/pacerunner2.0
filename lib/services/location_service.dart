@@ -103,10 +103,13 @@ class LocationService {
 
     // Enable background mode and configure settings for fitness tracking
     await _location.enableBackgroundMode(enable: true);
+    // Para adquisición inicial más rápida en reposo, usar alta precisión
+    // y distanceFilter 0 (emite aunque no te muevas). Luego, al iniciar
+    // la carrera, subimos a Navigation + 5m en resumeLocationTracking().
     await _location.changeSettings(
-      accuracy: LocationAccuracy.navigation, // Highest accuracy for running
+      accuracy: LocationAccuracy.high,
       interval: 1000, // 1 second interval
-      distanceFilter: 5, // 5 meters minimum distance change
+      distanceFilter: 0, // updates también en reposo
     );
 
     try {

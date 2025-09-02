@@ -21,7 +21,6 @@ class Map extends ConsumerStatefulWidget {
 class _MapState extends ConsumerState<Map> {
   GoogleMapController? mapController;
   LatLng _currentPosition = const LatLng(0, 0);
-  bool _locationObtained = false;
 
   // Polyline points
   List<LatLng> polylineCoordinates = [];
@@ -40,8 +39,20 @@ class _MapState extends ConsumerState<Map> {
   @override
   void initState() {
     super.initState();
-    //Listen to LocationService stream instead of creating own GPS
+    // Prime initial location for immediate map position
+    _primeInitialLocation();
+    // Listen to LocationService stream instead of creating own GPS
     _listenToLocationService();
+  }
+
+  Future<void> _primeInitialLocation() async {
+    final loc = await LocationService.getCurrentLocation();
+    if (!mounted) return;
+    if (loc != null && loc.latitude != null && loc.longitude != null) {
+      setState(() {
+        _currentPosition = LatLng(loc.latitude!, loc.longitude!);
+      });
+    }
   }
 
   //Function to listen to LocationService stream
@@ -66,7 +77,6 @@ class _MapState extends ConsumerState<Map> {
           _currentPosition =
               LatLng(currentLocation.latitude!, currentLocation.longitude!);
           _currentSpeed = currentLocation.speed ?? 0.0;
-          _locationObtained = true;
 
           // Update speed provider
           double speedInMph = getSpeedInMph();
@@ -186,58 +196,48 @@ class _MapState extends ConsumerState<Map> {
       }
     });
 
-    return MaterialApp(
-      home: Scaffold(
-        body: _locationObtained
-            ? Stack(
-                children: [
-                  // Container principal con borde gradiente
-                  Container(
-                    margin: const EdgeInsets.all(8.0),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12.0),
-                      gradient: const SweepGradient(
-                        center: Alignment.center,
-                        startAngle: 0.0,
-                        endAngle: 3.14159,
-                        colors: [
-                          Color.fromRGBO(140, 82, 255, 1.0),
-                          Color.fromRGBO(255, 87, 87, 1.0),
-                        ],
-                      ),
-                    ),
-                    padding: const EdgeInsets.all(3.0), // Grosor del borde
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(9.0),
-                        color: Colors.transparent,
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(9.0),
-                        child: GoogleMap(
-                          onMapCreated: _onMapCreated,
-                          mapType: MapType.normal,
-                          myLocationEnabled: true,
-                          myLocationButtonEnabled: true,
-                          initialCameraPosition: CameraPosition(
-                            target: _currentPosition,
-                            zoom: 15.0,
-                          ),
-                          polylines: {
-                            Polyline(
-                              polylineId: const PolylineId('route'),
-                              points: polylineCoordinates,
-                              color: const Color.fromARGB(255, 255, 49, 49),
-                              width: 5,
-                            ),
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : const Center(child: CircularProgressIndicator()),
+    // Render map immediately without internal spinner or nested MaterialApp/Scaffold
+    return Container(
+      margin: const EdgeInsets.all(8.0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12.0),
+        gradient: const SweepGradient(
+          center: Alignment.center,
+          startAngle: 0.0,
+          endAngle: 3.14159,
+          colors: [
+            Color.fromRGBO(140, 82, 255, 1.0),
+            Color.fromRGBO(255, 87, 87, 1.0),
+          ],
+        ),
+      ),
+      padding: const EdgeInsets.all(3.0), // Grosor del borde
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(9.0),
+          color: Colors.transparent,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(9.0),
+          child: GoogleMap(
+            onMapCreated: _onMapCreated,
+            mapType: MapType.normal,
+            myLocationEnabled: true,
+            myLocationButtonEnabled: true,
+            initialCameraPosition: CameraPosition(
+              target: _currentPosition,
+              zoom: 15.0,
+            ),
+            polylines: {
+              Polyline(
+                polylineId: const PolylineId('route'),
+                points: polylineCoordinates,
+                color: const Color.fromARGB(255, 255, 49, 49),
+                width: 5,
+              ),
+            },
+          ),
+        ),
       ),
     );
   }

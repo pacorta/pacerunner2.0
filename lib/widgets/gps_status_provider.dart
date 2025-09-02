@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Estados posibles del GPS
@@ -13,10 +14,19 @@ enum GPSStatus {
 final gpsStatusProvider =
     StateProvider<GPSStatus>((ref) => GPSStatus.acquiring);
 
+// Debug flag: forzar señal debil en modo debug (para probar UI)
+const bool kForceWeakGPSForDebug =
+    false; // false para produccion, true para debug.
+
 // Helper function para determinar el estado basado en accuracy
 GPSStatus determineGPSStatus(double? accuracy) {
+  // En debug, si el flag está activo, fuerza "weak"
+  if (kDebugMode && kForceWeakGPSForDebug) {
+    return GPSStatus.weak;
+  }
+  // Considerar null como weak: ya hay fix (coordenadas) pero sin precisión reportada
   if (accuracy == null) {
-    return GPSStatus.acquiring;
+    return GPSStatus.weak;
   }
 
   if (accuracy < 10.0) {

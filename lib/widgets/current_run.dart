@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:untitled/widgets/elapsed_time_provider.dart';
 import 'dart:async';
+import 'package:location/location.dart';
 import 'dart:typed_data';
 
 import 'map.dart';
@@ -45,6 +46,13 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
   Timer? _gpsTimeoutTimer;
   bool _hasTransitioned = false; //Para evitar transiciones múltiples
   DateTime? _runStartTime;
+  // Sutil banners state
+  GPSStatus? _lastGPSStatus;
+  bool _showAcquiredBanner = false;
+  Timer? _acquiredTimer;
+  bool _userActed = false; // Start o Discard
+  // First-fix shortcut to remove loader as soon as we have any location
+  StreamSubscription<LocationData>? _firstFixSub;
 
   @override
   void initState() {
@@ -58,6 +66,19 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
       ref.read(runStateProvider.notifier).state = RunState.fetchingGPS;
       _initializeGPS();
       _setupGPSTimeout();
+
+      // Quitar loader en cuanto llegue el primer fix (aunque sea weak)
+      _firstFixSub = LocationService.locationStream.listen((loc) {
+        if (!mounted) return;
+        final st = ref.read(runStateProvider);
+        if (st == RunState.fetchingGPS) {
+          ref.read(runStateProvider.notifier).state = RunState.readyToStart;
+          _gpsTimeoutTimer?.cancel();
+          _hasTransitioned = true;
+        }
+        _firstFixSub?.cancel();
+        _firstFixSub = null;
+      });
     });
   }
 
@@ -144,6 +165,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
   void _startRun() {
     _runStartTime = DateTime.now(); // ← CAPTURAR HORA DE INICIO
     print('CurrentRun: Starting run...');
+    _userActed = true;
     ref.read(runStateProvider.notifier).state = RunState.running;
     ref.read(pausableTimerProvider.notifier).start();
 
@@ -161,6 +183,8 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
   @override
   void dispose() {
     _gpsTimeoutTimer?.cancel();
+    _acquiredTimer?.cancel();
+    _firstFixSub?.cancel();
 
     // SIEMPRE parar LocationService al salir de CurrentRun
     // Usamos reset() en lugar de dispose() para mantener StreamController disponible
@@ -302,6 +326,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                   Navigator.of(context).pop();
                 }
 
+                _userActed = true; // dejar de mostrar banners sutiles
                 // Stop GPS/location tracking immediately
                 try {
                   await LocationService.stopLocationTracking();
@@ -397,15 +422,29 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     ref.listen(gpsStatusProvider, (previous, next) {
       final currentState = ref.read(runStateProvider);
 
-      // Solo transicionar si estamos en fetchingGPS y no hemos transicionado antes
+      // Transicionar a readyToStart cuando dejemos de estar "acquiring"
       if (currentState == RunState.fetchingGPS && !_hasTransitioned) {
-        if (next == GPSStatus.good || next == GPSStatus.strong) {
-          print('CurrentRun: GPS ready, transitioning to readyToStart');
+        if (next != GPSStatus.acquiring) {
+          print('CurrentRun: GPS fix obtained (any accuracy), readyToStart');
           ref.read(runStateProvider.notifier).state = RunState.readyToStart;
-          _gpsTimeoutTimer?.cancel(); // Cancelar timeout
-          _hasTransitioned = true; // Evitar transiciones múltiples
+          _gpsTimeoutTimer?.cancel();
+          _hasTransitioned = true;
         }
       }
+
+      // Banner momentáneo cuando pasamos de weak/acquiring a good/strong
+      final wasWeakOrAcquiring = _lastGPSStatus == GPSStatus.weak ||
+          _lastGPSStatus == GPSStatus.acquiring;
+      final isGoodNow = next == GPSStatus.good || next == GPSStatus.strong;
+      if (wasWeakOrAcquiring && isGoodNow && !_userActed) {
+        setState(() => _showAcquiredBanner = true);
+        _acquiredTimer?.cancel();
+        _acquiredTimer = Timer(const Duration(seconds: 2), () {
+          if (mounted) setState(() => _showAcquiredBanner = false);
+        });
+      }
+
+      _lastGPSStatus = next;
     });
 
     // Listen for location service issues during active run
@@ -440,184 +479,137 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                 // HEADER SECTION - Siempre visible
                 _buildHeaderSection(runState),
 
-                // MAIN CONTENT SECTION
-                if (runState == RunState.fetchingGPS) ...[
-                  // UI especial para cuando estamos buscando GPS
-                  Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // GPS Status Indicator
-                          Container(
-                            padding: EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: GPSIndicator(),
-                          ),
-                          SizedBox(height: 40),
+                // MAIN CONTENT SECTION: mostrar SIEMPRE el mapa
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.3,
+                  child: const Map(),
+                ),
 
-                          // Loading animation
-                          CircularProgressIndicator(
-                            color: const Color(0xFFFFB6C1),
-                            strokeWidth: 3,
+                // DATOS DEL RUN - Siempre visibles
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: <Widget>[
+                        // Banner sutil de GPS: solo cuando ya no estamos en fetchingGPS
+                        if (!_userActed && runState != RunState.fetchingGPS)
+                          _buildGPSStatusBanner(),
+                        const SizedBox(height: 8),
+                        // Tiempo transcurrido - Grande
+                        Text(
+                          elapsedTime,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
                           ),
-                          SizedBox(height: 20),
+                        ),
+                        const SizedBox(height: 8),
 
-                          // Mensaje explicativo
-                          Text(
-                            'Getting GPS signal...',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w500,
+                        // Etiqueta de tiempo
+                        const Text(
+                          'time',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Distancia y Pace en fila
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            // Distancia
+                            Column(
+                              children: [
+                                Text(
+                                  distance.split(' ')[0], // Solo el número
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  'distance (${distance.split(' ').length > 1 ? distance.split(' ')[1] : 'km'})',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            // Average Pace
+                            Column(
+                              children: [
+                                Text(
+                                  averagePace.split(
+                                      '/')[0], // Solo el tiempo antes del /
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const Text(
+                                  'avg pace',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // PaceBar - Solo cuando run está activo Y hay target pace: APAGADO PARA MVP
+                        //_buildPaceBarSection(runState),
+
+                        // Prediction Display - Solo cuando hay target pace
+                        _buildPredictionSection(runState),
+
+                        const Spacer(),
+
+                        // Botones de control (muestran spinner en fetchingGPS)
+                        _buildControlButtons(runState),
+
+                        // Discard run
+                        if (runState == RunState.readyToStart)
+                          OutlinedButton.icon(
+                            onPressed: () => _showDiscardConfirmation(context),
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: Colors.red.withOpacity(0.75),
+                              foregroundColor: Colors.white,
+                              side: BorderSide(
+                                color: Colors.white.withOpacity(0.30),
+                                width: 1.5,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              minimumSize: const Size(double.infinity, 44),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 16),
+                            ),
+                            icon: const Icon(Icons.delete_outline, size: 20),
+                            label: const Text(
+                              'Discard run',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Please wait while we locate you',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
-                ] else ...[
-                  // MAPA - Más pequeño
-                  Container(
-                    height: MediaQuery.of(context).size.height *
-                        0.3, // 30% de altura
-                    child: const Map(),
-                  ),
-
-                  // DATOS DEL RUN - Siempre visibles
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          // Tiempo transcurrido - Grande
-                          Text(
-                            elapsedTime,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 48,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-
-                          // Etiqueta de tiempo
-                          Text(
-                            'time',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-
-                          SizedBox(height: 24),
-
-                          // Distancia y Pace en fila
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              // Distancia
-                              Column(
-                                children: [
-                                  Text(
-                                    distance.split(' ')[0], // Solo el número
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    'distance (${distance.split(' ').length > 1 ? distance.split(' ')[1] : 'km'})',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              // Average Pace
-                              Column(
-                                children: [
-                                  Text(
-                                    averagePace.split(
-                                        '/')[0], // Solo el tiempo antes del /
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    'avg pace',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-
-                          SizedBox(height: 24),
-
-                          // PaceBar - Solo cuando run está activo Y hay target pace: APAGADO PARA MVP
-                          //_buildPaceBarSection(runState),
-
-                          // Prediction Display - Solo cuando hay target pace
-                          _buildPredictionSection(runState),
-
-                          Spacer(),
-
-                          // Botones de control
-                          _buildControlButtons(runState),
-
-                          // Discard run
-                          if (runState == RunState.readyToStart)
-                            OutlinedButton.icon(
-                              onPressed: () =>
-                                  _showDiscardConfirmation(context),
-                              style: OutlinedButton.styleFrom(
-                                backgroundColor: Colors.red.withOpacity(0.75),
-                                foregroundColor: Colors.white,
-                                side: BorderSide(
-                                  color: Colors.white.withOpacity(0.30),
-                                  width: 1.5,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                                minimumSize: const Size(double.infinity, 44),
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 12, horizontal: 16),
-                              ),
-                              icon: const Icon(Icons.delete_outline, size: 20),
-                              label: const Text(
-                                'Discard run',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ],
             ),
           ),
@@ -817,5 +809,59 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
       default:
         return Container(); // No mostrar botones en otros estados
     }
+  }
+
+  // Banner sutil inferior
+  Widget _buildGPSStatusBanner() {
+    final status = ref.watch(gpsStatusProvider);
+
+    if (_showAcquiredBanner) {
+      return _buildBanner(
+        text: 'GPS signal acquired',
+        color: Colors.green,
+      );
+    }
+
+    switch (status) {
+      case GPSStatus.acquiring:
+        return const SizedBox.shrink(); // no duplicar con loader inferior
+      case GPSStatus.weak:
+        return _buildBanner(
+          text: 'Weak GPS signal',
+          color: Colors.redAccent,
+        );
+      case GPSStatus.good:
+      case GPSStatus.strong:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildBanner({required String text, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.5)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(color: Colors.white),
+          ),
+        ],
+      ),
+    );
   }
 }

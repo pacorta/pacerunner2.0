@@ -11,6 +11,7 @@ import 'widgets/readable_pace_provider.dart';
 import 'widgets/inline_goal_input.dart';
 import 'widgets/temp_goal_providers.dart';
 import 'auth_wraper.dart';
+import 'services/location_service.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -26,6 +27,19 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Pre-warm GPS as soon as Home is shown (non-blocking)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        LocationService.initialize(ref);
+        // No await: start in background so when navigating it's ready
+        LocationService.startLocationTracking();
+      } catch (_) {}
+    });
+  }
+
   void _openSettingsSheet() {
     showModalBottomSheet(
       context: context,
