@@ -26,13 +26,14 @@ In `gps_status_provider.dart`:
 
 
 ### Other
-Fixed key-value pair for live activity in info.plist
+- Fixed key-value pair for live activity in info.plist
+- Added 'shake' animation because I was worried the UI wasn't intuitive enough. The shake widgets are wrapped around the distance and time input segments using AnimatedBuilder to apply Transform.translate, creating a subtle luring effect that guides users to complete their goal selection.
+- Added showNoMovementDialog() to restrict run savings to be over 0.01 km/mi.
 
 ### What's Next
-- Sound alerts
-- Split pace
-- Fix intentional user breaks (saving a very short run)
-- Launch ??
+- Launch for real user testing
+- Add sound alerts
+- Add split pace
 
 ---
 #### (For earlier logs, see `PAST-LOGS.md`)

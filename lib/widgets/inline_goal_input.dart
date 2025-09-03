@@ -166,10 +166,25 @@ String _formatDurationSimpleGlobal(Duration duration) {
   }
 }
 
-class _InlineGoalInputState extends ConsumerState<InlineGoalInput> {
+class _InlineGoalInputState extends ConsumerState<InlineGoalInput>
+    with TickerProviderStateMixin {
+  // Shake controllers for guiding the user to tap the other field
+  late final AnimationController _distanceShakeController;
+  late final AnimationController _timeShakeController;
+
   @override
   void initState() {
     super.initState();
+    // Init shake controllers
+    _distanceShakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    _timeShakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+
     // Initialize with existing goal if set
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final existingDistance = ref.read(customDistanceProvider);
@@ -178,6 +193,13 @@ class _InlineGoalInputState extends ConsumerState<InlineGoalInput> {
             existingDistance;
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _distanceShakeController.dispose();
+    _timeShakeController.dispose();
+    super.dispose();
   }
 
   void _clearGoal() {
@@ -191,6 +213,23 @@ class _InlineGoalInputState extends ConsumerState<InlineGoalInput> {
 
   @override
   Widget build(BuildContext context) {
+    // Riverpod listeners to trigger shakes when only one of the two is set
+    ref.listen<double?>(tempSelectedDistanceProvider, (previous, next) {
+      final time = ref.read(tempSelectedTimeProvider);
+      if (next != null && time == null) {
+        _nudge(_timeShakeController,
+            () => ref.read(tempSelectedTimeProvider) == null);
+      }
+    });
+
+    ref.listen<Duration?>(tempSelectedTimeProvider, (previous, next) {
+      final distance = ref.read(tempSelectedDistanceProvider);
+      if (next != null && distance == null) {
+        _nudge(_distanceShakeController,
+            () => ref.read(tempSelectedDistanceProvider) == null);
+      }
+    });
+
     final unit = ref.watch(distanceUnitProvider);
     final unitLabel = unit == DistanceUnit.kilometers ? 'km' : 'mi';
     final selectedDistance = ref.watch(tempSelectedDistanceProvider);
@@ -273,11 +312,14 @@ class _InlineGoalInputState extends ConsumerState<InlineGoalInput> {
               // Distance segment
               Expanded(
                 flex: 2,
-                child: _buildDataSegment(
-                  label: 'Distance',
-                  value: selectedDistance?.toStringAsFixed(1) ?? '0',
-                  onTap: () => _showDistanceSelector(),
-                  isActive: selectedDistance != null,
+                child: _wrapShake(
+                  controller: _distanceShakeController,
+                  child: _buildDataSegment(
+                    label: 'Distance',
+                    value: selectedDistance?.toStringAsFixed(1) ?? '0',
+                    onTap: () => _showDistanceSelector(),
+                    isActive: selectedDistance != null,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -296,11 +338,14 @@ class _InlineGoalInputState extends ConsumerState<InlineGoalInput> {
               // Time segment
               Expanded(
                 flex: 2,
-                child: _buildDataSegment(
-                  label: 'Time',
-                  value: _formatTime(selectedTime),
-                  onTap: () => _showTimeSelector(),
-                  isActive: selectedTime != null,
+                child: _wrapShake(
+                  controller: _timeShakeController,
+                  child: _buildDataSegment(
+                    label: 'Time',
+                    value: _formatTime(selectedTime),
+                    onTap: () => _showTimeSelector(),
+                    isActive: selectedTime != null,
+                  ),
                 ),
               ),
             ],
@@ -350,6 +395,44 @@ class _InlineGoalInputState extends ConsumerState<InlineGoalInput> {
         ),
       ),
     );
+  }
+
+  // Wrap a child with a horizontal shake animation
+  Widget _wrapShake({
+    required AnimationController controller,
+    required Widget child,
+  }) {
+    // A small oscillation on X axis
+    final Animation<double> offset = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0, end: 5), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 5, end: -5), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -5, end: 3), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 3, end: -2), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -2, end: 0), weight: 1),
+    ]).animate(CurvedAnimation(parent: controller, curve: Curves.easeOut));
+
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, childWidget) {
+        return Transform.translate(
+          offset: Offset(offset.value, 0),
+          child: childWidget,
+        );
+      },
+      child: child,
+    );
+  }
+
+  // Trigger a few subtle shakes separated by pauses while the predicate remains true
+  Future<void> _nudge(
+      AnimationController controller, bool Function() shouldContinue) async {
+    // Run up to 3 times, stop early if condition no longer holds
+    for (int i = 0; i < 3; i++) {
+      if (!shouldContinue()) return;
+      await controller.forward(from: 0);
+      if (!shouldContinue()) return;
+      await Future.delayed(const Duration(milliseconds: 350));
+    }
   }
 
   void _toggleUnit() {

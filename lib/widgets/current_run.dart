@@ -28,7 +28,7 @@ import 'current_pace_in_seconds_provider.dart';
 import 'target_providers.dart';
 import 'distance_unit_provider.dart';
 import 'inline_goal_input.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'run_summary_screen.dart';
 
 import '../services/location_service.dart';
@@ -254,20 +254,15 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     final finalTime = ref.read(formattedElapsedTimeProvider);
     final finalPace = ref.read(stableAveragePaceProvider);
 
+    // Validar distancia minima antes de continuar
+    if (distance < 0.01) {
+      _showNoMovementDialog();
+      return;
+    }
+
     // Paso 5: Ahora si reseteamos el cronómetro y cambiamos el estado
     ref.read(pausableTimerProvider.notifier).stop();
     ref.read(runStateProvider.notifier).state = RunState.finished;
-
-    // Paso 6: Usar los datos capturados (que YA tienen los valores correctos)
-    final runData = {
-      'distance': distance,
-      'distanceUnitString': distanceUnitString,
-      'time': finalTime, // Ya tiene el tiempo correcto
-      'averagePace': finalPace, // Ya tiene el pace correcto
-      'startTime': _runStartTime?.toIso8601String(),
-      'date': _runStartTime?.toString().split(' ')[0],
-      'timestamp': FieldValue.serverTimestamp(),
-    };
 
     // Navigate to RunSummaryScreen instead of showing dialog
     Navigator.push(
@@ -380,6 +375,85 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
               child: const Text(
                 'Discard',
                 style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showNoMovementDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey.shade800,
+          title: const Text(
+            'No Movement Detected',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          content: const Text(
+            'This activity cannot be saved because there\'s no change in your location',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop(); // Close dialog
+
+                // Discard the run (similar to _showDiscardConfirmation logic)
+                _userActed = true;
+                try {
+                  await LocationService.stopLocationTracking();
+                } catch (_) {}
+                try {
+                  ref.read(trackingProvider.notifier).state = false;
+                } catch (_) {}
+                try {
+                  ref.read(pausableTimerProvider.notifier).stop();
+                } catch (_) {}
+                try {
+                  ref.read(runStateProvider.notifier).state =
+                      RunState.fetchingGPS;
+                } catch (_) {}
+                try {
+                  ref.read(distanceProvider.notifier).state = 0.0;
+                  ref.read(speedProvider.notifier).state = 0.0;
+                } catch (_) {}
+                try {
+                  ref.read(elapsedTimeProvider.notifier).state = '00:00:00';
+                } catch (_) {}
+                resetCurrentPaceInSecondsProvider();
+                resetCurrentPaceProvider();
+                resetStableAveragePace(ref);
+                resetPredictionProviders(ref);
+                try {
+                  clearGoalProviders(ref);
+                } catch (_) {}
+                try {
+                  ref.read(locationsProvider.notifier).state = [];
+                  ref.read(polylineCoordinatesProvider.notifier).state = [];
+                } catch (_) {}
+
+                if (mounted) {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                }
+              },
+              child: const Text(
+                'Discard',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
