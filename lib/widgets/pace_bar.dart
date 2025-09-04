@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:untitled/widgets/custom_distance_provider.dart';
-import 'package:untitled/widgets/custom_pace_provider.dart';
+import 'package:pacerunner/widgets/custom_distance_provider.dart';
+import 'package:pacerunner/widgets/custom_pace_provider.dart';
 import 'stable_average_pace_provider.dart';
 import 'distance_unit_provider.dart';
 import 'run_state_provider.dart';
 import 'dart:math';
 
 import 'package:flutter/services.dart';
-import 'package:untitled/utils/pace_utils.dart';
+import 'package:pacerunner/utils/pace_utils.dart';
 
 class PaceBar extends ConsumerStatefulWidget {
   const PaceBar({

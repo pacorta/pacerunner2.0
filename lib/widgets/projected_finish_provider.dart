@@ -7,7 +7,7 @@ import 'distance_provider.dart';
 import 'distance_unit_provider.dart';
 import 'target_providers.dart';
 import 'stable_average_pace_provider.dart';
-import 'package:untitled/utils/pace_utils.dart';
+import 'package:pacerunner/utils/pace_utils.dart';
 
 // Provider that calculates projected finish time and status
 final projectedFinishProvider = Provider<Map<String, String>>((ref) {

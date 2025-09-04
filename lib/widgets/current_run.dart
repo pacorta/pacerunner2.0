@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:untitled/widgets/elapsed_time_provider.dart';
+import 'package:pacerunner/widgets/elapsed_time_provider.dart';
 import 'dart:async';
 import 'package:location/location.dart';
 import 'dart:typed_data';
