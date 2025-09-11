@@ -1,34 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'projected_finish_provider.dart';
+import 'goal_progress_provider.dart';
+import 'distance_provider.dart';
+import 'target_providers.dart';
+import 'distance_unit_provider.dart';
+import 'distance_unit_conversion.dart';
 
 class PredictionDisplay extends ConsumerWidget {
   const PredictionDisplay({super.key});
 
-  // Helper function to determine text color based on projection vs target
-  Color _getProjectionColor(Map<String, String> prediction) {
+  // Helper function to determine text color
+  // - Normal running: white when on/under target, red when over
+  // - Finalized (after reaching target distance in complex goal):
+  //   green when under-or-equal target time, red when over
+  Color _getProjectionColor(
+    Map<String, String> prediction, {
+    required bool isFinalized,
+  }) {
     final difference = prediction['difference'];
     if (difference == null || difference == '0') {
-      return Colors.white; // Default color for calculating/starting
+      return isFinalized ? Colors.green : Colors.white;
     }
 
     final diffValue = double.tryParse(difference);
     if (diffValue == null) {
-      return Colors.white; // Default color if parsing fails
+      return isFinalized ? Colors.green : Colors.white;
     }
 
-    if (diffValue > 0) {
-      // User is slower than target - show in red
-      return Colors.red;
-    } else {
-      // User is faster than target - show in white
-      return Colors.white;
+    if (isFinalized) {
+      // At finish distance: green if under or equal, else red
+      return diffValue <= 0 ? Colors.green : Colors.red;
     }
+
+    // During run: red when behind, white otherwise
+    return diffValue > 0 ? Colors.red : Colors.white;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final prediction = ref.watch(projectedFinishProvider);
+    final firstReachTimeSecs = ref.watch(firstReachTargetTimeSecondsProvider);
+    final currentDistanceKm = ref.watch(distanceProvider);
+    final targetDistance = ref.watch(targetDistanceProvider);
+    final unit = ref.watch(distanceUnitProvider);
+
+    bool isFinalized = false;
+    if (firstReachTimeSecs != null && targetDistance != null) {
+      double targetDistanceKm = unit == DistanceUnit.miles
+          ? milesToKilometers(targetDistance)
+          : targetDistance;
+      isFinalized = currentDistanceKm >= targetDistanceKm;
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
@@ -45,7 +68,7 @@ class PredictionDisplay extends ConsumerWidget {
         children: [
           // Projected Time
           Text(
-            'Projected finish time',
+            isFinalized ? 'Finish time' : 'Projected finish time',
             style: TextStyle(
               color: Colors.white.withOpacity(0.9),
               fontSize: 12,
@@ -56,7 +79,7 @@ class PredictionDisplay extends ConsumerWidget {
           Text(
             prediction['projectedTime'] ?? 'Keep running...',
             style: TextStyle(
-              color: _getProjectionColor(prediction),
+              color: _getProjectionColor(prediction, isFinalized: isFinalized),
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),

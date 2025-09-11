@@ -8,6 +8,8 @@ import 'distance_unit_provider.dart';
 import 'target_providers.dart';
 import 'stable_average_pace_provider.dart';
 import 'package:pacerunner/utils/pace_utils.dart';
+import 'goal_progress_provider.dart';
+import 'distance_unit_conversion.dart';
 
 // Provider that calculates projected finish time and status
 final projectedFinishProvider = Provider<Map<String, String>>((ref) {
@@ -16,6 +18,7 @@ final projectedFinishProvider = Provider<Map<String, String>>((ref) {
   final targetTime = ref.watch(targetTimeProvider);
   final unit = ref.watch(distanceUnitProvider);
   final stablePaceString = ref.watch(stableAveragePaceProvider);
+  final firstReachTimeSecs = ref.watch(firstReachTargetTimeSecondsProvider);
 
   // Return empty if no target set or insufficient data
   if (targetDistance == null || targetTime == null || currentDistance < 0.05) {
@@ -27,15 +30,14 @@ final projectedFinishProvider = Provider<Map<String, String>>((ref) {
   }
 
   // Convert distances to consistent unit (use km internally)
-  double targetDistanceKm = targetDistance;
-  if (unit == DistanceUnit.miles) {
-    targetDistanceKm = targetDistance * 1.60934; // Convert miles to km
-  }
+  double targetDistanceKm = unit == DistanceUnit.miles
+      ? milesToKilometers(targetDistance)
+      : targetDistance;
 
   // Parse stable average pace (seconds per selected unit) and normalize to sec/km
   final paceSecondsPerUnit = parsePaceStringToSeconds(stablePaceString);
   final stableAveragePacePerKm = unit == DistanceUnit.miles
-      ? paceSecondsPerUnit / 1.60934
+      ? paceSecondsPerUnit / milesToKilometers(1)
       : paceSecondsPerUnit;
 
   /*
@@ -47,6 +49,32 @@ final projectedFinishProvider = Provider<Map<String, String>>((ref) {
   print('  Stable pace string: $stablePaceString');
   print('  Stable pace per km: $stableAveragePacePerKm sec/km');
   */
+
+  // If the user has reached the goal distance (complex goal), freeze the
+  // projection at the first time they hit the distance and compare vs target.
+  if (firstReachTimeSecs != null && currentDistance >= targetDistanceKm) {
+    final projectedTotalSeconds = firstReachTimeSecs;
+
+    // Format time as Xm Ys or Hh Mm Ss
+    String formattedProjectedTime;
+    final hours = (projectedTotalSeconds / 3600).floor();
+    final minutes = ((projectedTotalSeconds % 3600) / 60).floor();
+    final seconds = (projectedTotalSeconds % 60).floor();
+
+    if (hours > 0) {
+      formattedProjectedTime = "${hours}h ${minutes}m ${seconds}s";
+    } else {
+      formattedProjectedTime = "${minutes}m ${seconds}s";
+    }
+
+    final difference = projectedTotalSeconds - targetTime;
+
+    return {
+      "projectedTime": formattedProjectedTime,
+      "status": "Finalized",
+      "difference": difference.toString(),
+    };
+  }
 
   // If stable pace is not available yet, return calculating
   if (stableAveragePacePerKm == 0.0) {
