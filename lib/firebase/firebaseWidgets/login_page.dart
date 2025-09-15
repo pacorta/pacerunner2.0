@@ -1,6 +1,11 @@
+import 'dart:convert';
+import 'dart:math';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:crypto/crypto.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -53,6 +58,9 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 16),
                     */
                     Image.asset('images/pacebud-dark-text-logo.png'),
+                    const SizedBox(height: 12),
+                    _buildAppleSignInButton(),
+                    const SizedBox(height: 12),
                     _buildGoogleSignInButton(),
                   ],
                 ),
@@ -155,6 +163,29 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  Widget _buildAppleSignInButton() {
+    if (!Platform.isIOS) return const SizedBox.shrink();
+    return ElevatedButton(
+      onPressed: _handleAppleSignIn,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.apple, size: 24, color: Colors.black87),
+          const SizedBox(width: 8),
+          const Text('Sign in with Apple'),
+        ],
+      ),
+    );
+  }
+
   void _signInWithEmailAndPassword() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
@@ -206,6 +237,78 @@ class _LoginPageState extends State<LoginPage> {
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _handleAppleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      final rawNonce = _generateNonce();
+      final nonce = _sha256ofString(rawNonce);
+
+      final appleCred = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: nonce,
+      );
+
+      final oauthCred = OAuthProvider('apple.com').credential(
+        idToken: appleCred.identityToken,
+        rawNonce: rawNonce,
+        accessToken: appleCred.authorizationCode,
+      );
+
+      final userCred =
+          await FirebaseAuth.instance.signInWithCredential(oauthCred);
+
+      final given = appleCred.givenName ?? '';
+      final family = appleCred.familyName ?? '';
+      final composedName = (given + ' ' + family).trim();
+      if (composedName.isNotEmpty) {
+        await userCred.user?.updateDisplayName(composedName);
+      }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'account-exists-with-different-credential') {
+        final email = e.email;
+        if (email != null) {
+          final methods =
+              await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
+          _showErrorSnackBar(
+              'Este email ya tiene otra forma de acceso: ${methods.join(', ')}. Usa ese método y luego vinculamos.');
+        } else {
+          _showErrorSnackBar('La cuenta ya existe con otro proveedor.');
+        }
+      } else if (e.code == 'credential-already-in-use') {
+        _showErrorSnackBar(
+            'La credencial de Apple ya está vinculada a otra cuenta.');
+      } else {
+        _showErrorSnackBar(
+            'No se pudo iniciar con Apple: ${e.code} - ${e.message}');
+      }
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code != AuthorizationErrorCode.canceled) {
+        _showErrorSnackBar('Apple error: ${e.message}');
+      }
+    } catch (e) {
+      _showErrorSnackBar('Error inesperado con Apple: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _generateNonce([int length = 32]) {
+    const charset =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+    return List.generate(length, (_) => charset[random.nextInt(charset.length)])
+        .join();
+  }
+
+  String _sha256ofString(String input) {
+    final bytes = utf8.encode(input);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
   }
 
   void _showErrorSnackBar(String message) {
