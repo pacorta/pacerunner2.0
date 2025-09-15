@@ -130,6 +130,14 @@ class LocationService {
           // Try-catch para GPS status update
           _updateGPSStatusSafely(currentLocation.accuracy);
 
+          // If ref was cleared due to widget disposal, stop tracking
+          if (_ref == null && _isInitialized) {
+            print(
+                'LocationService: Widget disposed, stopping tracking automatically');
+            stopLocationTracking();
+            return;
+          }
+
           // Add to stream (asegurar que controller existe)
           _ensureController();
           _locationController!.add(currentLocation);
@@ -169,9 +177,10 @@ class LocationService {
         final gpsStatus = determineGPSStatus(accuracy);
         _ref!.read(gpsStatusProvider.notifier).state = gpsStatus;
       } catch (e) {
-        // Widget disposed, ignore GPS updates
+        // Widget disposed, clear ref to stop further attempts
         print(
             'LocationService: GPS status update failed (widget disposed): $e');
+        _ref = null; // Clear ref to prevent further spam
       }
     }
   }
@@ -186,6 +195,7 @@ class LocationService {
       } catch (e) {
         print(
             'LocationService: Could not notify location service disabled: $e');
+        _ref = null; // Clear ref to prevent further attempts
       }
     }
   }
@@ -254,9 +264,10 @@ class LocationService {
         try {
           _ref!.read(gpsStatusProvider.notifier).state = GPSStatus.acquiring;
         } catch (e) {
-          // Widget disposed, ignore
+          // Widget disposed, ignore and clear ref
           print(
               'LocationService: Final GPS status update failed (widget disposed): $e');
+          _ref = null; // Clear ref to prevent further attempts
         }
       }
 

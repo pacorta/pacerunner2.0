@@ -37,10 +37,45 @@ I tried uploading this app for apple review and they told me I needed to:
 ### Lesson Learned:
 - For iOS native, Firebase needs the main App ID in the field "services ID", not a separate Services ID. The Firebase documentation is confusing in this matter; it says "Services ID (not required for Apple)" but then requires the App ID in that field for token validation.
 
+## Location Listener
+
+Added mechanism to detect when the user leaves the app to stop tracking automatically.
+
+- Used WidgetsBindingObserver with runStateProvider according to the existing flow:
+1. tracking begins at HomeScreen.initState() for pre-warming
+2. tracking stops at CurrentRun.dispose()
+
+- Location trcking stayed active because there was no listener for the app's lifecycle
+
+- `RunState.running` and `RunState.paused` are considered active sessions
+
+**Code Implementation:**
+```dart
+final isRunning = runState == RunState.running || runState == RunState.paused;
+
+if (!isRunning && LocationService.isInitialized) {
+  await LocationService.stopLocationTracking();
+}
+```
+
+## GPS Status Spam Fix (Logout)
+
+Fixed issue where LocationService would spam GPS status update errors after user logout.
+
+**Problem:** When user logs out, RootShell gets disposed but LocationService continues trying to update GPS status with an invalid WidgetRef, causing console spam:
+```
+flutter: LocationService: GPS status update failed (widget disposed): Bad state: Cannot use "ref" after the widget was disposed.
+```
+
+**Solution:**
+1. LocationService.dispose() called when user logs out
+2. When ref becomes invalid, clear it immediately to prevent spam
+3. If ref is cleared while tracking, automatically stop LocationService
+4. **Protected all GPS status update methods** with ref validation and cleanup
+
+
 ### What's Next
-- Fix issue: when after not on a run, app keeps tracking user's location (have blue GPS indicator on). Hours after completing the run/not being active.
 - Make sure to save in the database whether the user reached their goal or not, how long it took them, or how far where they off completing it.
-- Add sound alerts.
 - Add split pace stats + charts.
 - Launch for real user testing.
 

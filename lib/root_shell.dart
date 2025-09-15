@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'home_screen.dart';
 import 'firebase/firebaseWidgets/running_stats.dart';
+import 'services/location_service.dart';
+import 'widgets/run_state_provider.dart';
 
 class RootShell extends ConsumerStatefulWidget {
   const RootShell({super.key});
@@ -11,7 +13,77 @@ class RootShell extends ConsumerStatefulWidget {
   ConsumerState<RootShell> createState() => _RootShellState();
 }
 
-class _RootShellState extends ConsumerState<RootShell> {
+class _RootShellState extends ConsumerState<RootShell>
+    with WidgetsBindingObserver {
+  bool _wasTrackingBeforeBackground = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // Clean up LocationService when RootShell is disposed (e.g., on logout)
+    LocationService.dispose().catchError((e) {
+      print('RootShell: Error disposing LocationService: $e');
+    });
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        _handleAppGoingToBackground();
+        break;
+      case AppLifecycleState.resumed:
+        _handleAppComingToForeground();
+        break;
+      default:
+        break;
+    }
+  }
+
+  void _handleAppGoingToBackground() async {
+    print('RootShell: App going to background');
+
+    // Check if there's an active running session
+    final runState = ref.read(runStateProvider);
+    final isRunning =
+        runState == RunState.running || runState == RunState.paused;
+
+    if (!isRunning && LocationService.isInitialized) {
+      // No active running session, stop location tracking to save battery
+      print('RootShell: No active run, stopping location tracking');
+      _wasTrackingBeforeBackground = true;
+      await LocationService.stopLocationTracking();
+    } else if (isRunning) {
+      print('RootShell: Active run detected, keeping location tracking active');
+      _wasTrackingBeforeBackground = false;
+    } else {
+      _wasTrackingBeforeBackground = false;
+    }
+  }
+
+  void _handleAppComingToForeground() async {
+    print('RootShell: App coming to foreground');
+
+    // If we stopped tracking when going to background and we're back on home screen,
+    // restart tracking for pre-warming
+    if (_wasTrackingBeforeBackground && !LocationService.isInitialized) {
+      print('RootShell: Restarting location tracking for pre-warming');
+      LocationService.initialize(ref);
+      await LocationService.startLocationTracking();
+    }
+    _wasTrackingBeforeBackground = false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

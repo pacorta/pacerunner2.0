@@ -32,12 +32,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     // Pre-warm GPS as soon as Home is shown (non-blocking)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      try {
+      _startLocationPreWarming();
+    });
+  }
+
+  void _startLocationPreWarming() {
+    try {
+      // Only start location tracking if not already initialized
+      // This prevents restarting when coming back from a run
+      if (!LocationService.isInitialized) {
         LocationService.initialize(ref);
         // No await: start in background so when navigating it's ready
         LocationService.startLocationTracking();
-      } catch (_) {}
-    });
+        print('HomeScreen: Started location pre-warming');
+      } else {
+        print(
+            'HomeScreen: Location service already initialized, skipping pre-warming');
+      }
+    } catch (e) {
+      print('HomeScreen: Error starting location pre-warming: $e');
+    }
   }
 
   void _openSettingsSheet() {
