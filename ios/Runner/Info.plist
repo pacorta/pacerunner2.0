@@ -63,5 +63,11 @@
     <true/>
     <key>GoogleMapsApiKey</key>
     <string>AIzaSyAi8f9YzcNMbJM4v7U-DPcTwPFBGyYC3S0</string>
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>mailto</string>
+        <string>tel</string>
+        <string>sms</string>
+    </array>
 </dict>
 </plist>

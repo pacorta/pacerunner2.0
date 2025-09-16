@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 //import 'package:firebase_core/firebase_core.dart';
-import 'package:pacerunner/widgets/distance_unit_provider.dart';
 import 'widgets/current_run.dart';
 import 'widgets/tracking_provider.dart';
 import 'widgets/distance_provider.dart';
@@ -10,10 +10,8 @@ import 'widgets/custom_distance_provider.dart';
 import 'widgets/readable_pace_provider.dart';
 import 'widgets/inline_goal_input.dart';
 import 'widgets/temp_goal_providers.dart';
-import 'auth_wraper.dart';
+import 'widgets/settings_sheet.dart';
 import 'services/location_service.dart';
-
-import 'package:firebase_auth/firebase_auth.dart';
 
 // import 'firebase/firebaseWidgets/running_stats.dart';
 
@@ -33,6 +31,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Pre-warm GPS as soon as Home is shown (non-blocking)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startLocationPreWarming();
+      _maybeShowFirstLaunchPermissionGuide();
     });
   }
 
@@ -42,8 +41,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       // This prevents restarting when coming back from a run
       if (!LocationService.isInitialized) {
         LocationService.initialize(ref);
-        // No await: start in background so when navigating it's ready
-        LocationService.startLocationTracking();
+        // Start without prompting so guidance dialog can appear first
+        LocationService.startLocationTracking(
+          promptIfDenied: false,
+          elevateToAlways: false,
+        );
         print('HomeScreen: Started location pre-warming');
       } else {
         print(
@@ -54,168 +56,319 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  void _openSettingsSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Consumer(builder: (context, refConsumer, _) {
-          final unit = refConsumer.watch(distanceUnitProvider);
-          final unitLabel = unit == DistanceUnit.miles ? 'Miles' : 'Kilometers';
+  Future<void> _maybeShowFirstLaunchPermissionGuide() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      const key = 'permission_guide_shown_v1';
+      final shown = prefs.getBool(key) ?? false;
+      if (shown) return;
 
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            child: Column(
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text(
+              'Location Permission',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2C3E50),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            content: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // User info section
-                Consumer(builder: (context, refConsumer, _) {
-                  final user = FirebaseAuth.instance.currentUser;
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundColor:
-                              const Color.fromRGBO(140, 82, 255, 1.0),
-                          child: Text(
-                            user?.email?.substring(0, 1).toUpperCase() ?? 'U',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                user?.email ?? 'User',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Logged in',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                const SizedBox(height: 20),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text(
-                    'Units of Measurement',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                const Text(
+                  'For best app performance:',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF34495E),
+                    fontWeight: FontWeight.w500,
                   ),
-                  trailing: Text(
-                    unitLabel,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black54,
-                    ),
-                  ),
-                  onTap: () {
-                    final notifier =
-                        refConsumer.read(distanceUnitProvider.notifier);
-                    notifier.state = unit == DistanceUnit.miles
-                        ? DistanceUnit.kilometers
-                        : DistanceUnit.miles;
-                  },
                 ),
-                const SizedBox(height: 8),
-                Divider(color: Colors.black.withOpacity(0.1)),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          backgroundColor: Colors.grey.shade800,
-                          title: const Text(
-                            'Log out?',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('👉', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: RichText(
+                        text: const TextSpan(
+                          style:
+                              TextStyle(fontSize: 15, color: Color(0xFF2C3E50)),
+                          children: [
+                            TextSpan(
+                              text: 'Step 1: ',
+                              style: TextStyle(fontWeight: FontWeight.bold),
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                          actionsAlignment: MainAxisAlignment.center,
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text(
-                                'Cancel',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text(
-                                'Logout',
-                                style: TextStyle(color: Colors.red),
+                            TextSpan(text: 'Select '),
+                            TextSpan(
+                              text: '"Allow While Using App"',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF3498DB),
                               ),
                             ),
                           ],
                         ),
-                      );
-
-                      if (confirm == true) {
-                        await FirebaseAuth.instance.signOut();
-                        if (mounted) {
-                          Navigator.pop(context); // close sheet
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const AuthWrapper()),
-                          );
-                        }
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE53935),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    icon: const Icon(Icons.logout),
-                    label: const Text('Logout'),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                const SafeArea(child: SizedBox.shrink()),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('👉', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: RichText(
+                        text: const TextSpan(
+                          style:
+                              TextStyle(fontSize: 15, color: Color(0xFF2C3E50)),
+                          children: [
+                            TextSpan(
+                              text: 'Step 2: ',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            TextSpan(text: 'Change to '),
+                            TextSpan(
+                              text: '"Always Allow"',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF3498DB),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  // Show goal setup guide after permission guide
+                  _showGoalSetupGuide();
+                },
+                style: TextButton.styleFrom(
+                  backgroundColor: const Color(0xFF3498DB),
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Got it',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+            actionsPadding: const EdgeInsets.all(16),
+            actionsAlignment: MainAxisAlignment.center,
           );
-        });
+        },
+      );
+
+      await prefs.setBool(key, true);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  Future<void> _showGoalSetupGuide() async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Set Your Goal',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF2C3E50),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Choose how you want to track your run:',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF34495E),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Option 1: Distance only
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('🏃', style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: RichText(
+                      text: const TextSpan(
+                        style:
+                            TextStyle(fontSize: 15, color: Color(0xFF2C3E50)),
+                        children: [
+                          TextSpan(
+                            text: 'Distance only: ',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          TextSpan(text: 'Set just the '),
+                          TextSpan(
+                            text: 'distance',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF9B59B6),
+                            ),
+                          ),
+                          TextSpan(text: ' you want to run'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Option 2: Time only
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('⏱️', style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: RichText(
+                      text: const TextSpan(
+                        style:
+                            TextStyle(fontSize: 15, color: Color(0xFF2C3E50)),
+                        children: [
+                          TextSpan(
+                            text: 'Time only: ',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          TextSpan(text: 'Set just the '),
+                          TextSpan(
+                            text: 'time',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF9B59B6),
+                            ),
+                          ),
+                          TextSpan(text: ' you want to run'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Option 3: Both distance and time
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('🎯', style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: RichText(
+                      text: const TextSpan(
+                        style:
+                            TextStyle(fontSize: 15, color: Color(0xFF2C3E50)),
+                        children: [
+                          TextSpan(
+                            text: 'Distance + Time: ',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          TextSpan(text: 'Set '),
+                          TextSpan(
+                            text: 'both',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF9B59B6),
+                            ),
+                          ),
+                          TextSpan(text: ' for a pace challenge'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F8FF),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('💡', style: TextStyle(fontSize: 16)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Tap the numbers to change them, or leave at 0 to skip that goal.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFF9B59B6),
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Let\'s run!',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+          actionsPadding: const EdgeInsets.all(16),
+          actionsAlignment: MainAxisAlignment.center,
+        );
       },
     );
+  }
+
+  void _openSettingsSheet() {
+    SettingsSheet.show(context);
   }
 
   Widget _buildRunButton() {

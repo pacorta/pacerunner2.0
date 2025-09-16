@@ -140,39 +140,35 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
     final targetDistance = ref.watch(targetDistanceProvider);
 
     bool goalAchieved = false;
-    int? goalCompletionTimeSeconds; // When the objective was reached
-    int? totalRunTimeSeconds; // Total run duration
+    int? goalCompletionTimeSeconds;
 
-    // Parse total run duration from final time string (hh:mm:ss)
-    final totalParts = widget.finalTime.split(':');
-    if (totalParts.length == 3) {
-      totalRunTimeSeconds = int.parse(totalParts[0]) * 3600 +
-          int.parse(totalParts[1]) * 60 +
-          int.parse(totalParts[2]);
-    }
-
+    // Check goal achievement using same logic as confetti
     if (hasDistanceTimeGoal &&
         targetDistance != null &&
         targetTimeSecs != null) {
       if (firstReachTimeSecs != null) {
-        // Always store the time when the target distance was first reached
-        goalCompletionTimeSeconds = firstReachTimeSecs.round();
-        // Goal achieved only if reached within target time
         goalAchieved = firstReachTimeSecs <= targetTimeSecs;
+        if (goalAchieved) {
+          goalCompletionTimeSeconds = firstReachTimeSecs.round();
+        }
       }
     } else if (hasDistanceOnlyGoal && targetDistance != null) {
       goalAchieved = widget.distance >= targetDistance;
-      // Store the time when the target distance was first reached (if reached)
-      if (firstReachTimeSecs != null) {
+      if (goalAchieved && firstReachTimeSecs != null) {
         goalCompletionTimeSeconds = firstReachTimeSecs.round();
       }
     } else if (hasTimeOnlyGoal) {
       final targetSeconds = ref.watch(timeOnlyGoalSecondsProvider);
-      if (targetSeconds != null && totalRunTimeSeconds != null) {
-        goalAchieved = totalRunTimeSeconds >= targetSeconds;
-        if (goalAchieved) {
-          // For time-only goals, the completion time is the target time itself
-          goalCompletionTimeSeconds = targetSeconds.round();
+      if (targetSeconds != null) {
+        final parts = widget.finalTime.split(':');
+        if (parts.length == 3) {
+          final actualSeconds = int.parse(parts[0]) * 3600 +
+              int.parse(parts[1]) * 60 +
+              int.parse(parts[2]);
+          goalAchieved = actualSeconds >= targetSeconds;
+          if (goalAchieved) {
+            goalCompletionTimeSeconds = actualSeconds;
+          }
         }
       }
     }
@@ -186,10 +182,9 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
       'startTime': widget.runStartTime?.toIso8601String(),
       'date': widget.runStartTime?.toString().split(' ')[0],
       'timestamp': FieldValue.serverTimestamp(),
-      // Goal achievement data
+      // NEW: Goal achievement data
       'goalAchieved': goalAchieved,
       'goalCompletionTimeSeconds': goalCompletionTimeSeconds,
-      'totalRunTimeSeconds': totalRunTimeSeconds,
     };
 
     // Reset Providers
@@ -227,9 +222,7 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
       // Debug: Print goal achievement data
       debugPrint('RunSummary: Saving run with goal data:');
       debugPrint('  - Goal Achieved: $goalAchieved');
-      debugPrint(
-          '  - Goal Completion Time: $goalCompletionTimeSeconds seconds');
-      debugPrint('  - Total Run Time: $totalRunTimeSeconds seconds');
+      debugPrint('  - Completion Time: $goalCompletionTimeSeconds seconds');
 
       FirebaseFirestore.instance
           .collection('users')

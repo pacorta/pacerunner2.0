@@ -34,8 +34,11 @@ class LocationService {
     _ref = ref;
   }
 
-  // Iniciar tracking de ubicación (pre-warming)
-  static Future<bool> startLocationTracking() async {
+  // Iniciar tracking de ubicación (controlando prompts)
+  static Future<bool> startLocationTracking({
+    bool promptIfDenied = true,
+    bool elevateToAlways = true,
+  }) async {
     if (_isInitialized) {
       print('LocationService: Already initialized');
       return true;
@@ -53,10 +56,15 @@ class LocationService {
       }
     }
 
-    // Request "Always" permission for background location
+    // Request permission logic (configurable)
     PermissionStatus permission = await _location.hasPermission();
 
     if (permission == PermissionStatus.denied) {
+      if (!promptIfDenied) {
+        print(
+            'LocationService: Permission denied and promptIfDenied=false. Skipping.');
+        return false;
+      }
       permission = await _location.requestPermission();
       if (permission != PermissionStatus.granted) {
         print('LocationService: Location permission not granted');
@@ -64,33 +72,41 @@ class LocationService {
       }
     }
 
-    // Handle deniedForever case - user needs to go to Settings to enable Always
+    // Handle deniedForever case - user needs to go to Settings to enable permission
     if (permission == PermissionStatus.deniedForever) {
-      print('LocationService: Permission denied forever, opening app settings');
-      // Open settings for user to manually grant Always permission
-      final opened = await ph.openAppSettings();
-      if (!opened) {
-        print('LocationService: Could not open app settings');
+      if (promptIfDenied) {
+        print(
+            'LocationService: Permission denied forever, opening app settings');
+        final opened = await ph.openAppSettings();
+        if (!opened) {
+          print('LocationService: Could not open app settings');
+        }
+      } else {
+        print(
+            'LocationService: Permission denied forever and promptIfDenied=false. Skipping.');
       }
-      return false; // Stop initialization until user returns with proper permissions
+      return false;
     }
 
     // Check real iOS authorization status after permission request
     final status = await NativeLocationManager.authorizationStatus();
     if (status == 'whenInUse') {
-      print(
-          'LocationService: Only "When In Use" permission granted. Requesting "Always" for background tracking...');
-      // Show user why we need Always permission, then request it
-      await NativeLocationManager.requestAlways();
+      if (elevateToAlways) {
+        print(
+            'LocationService: Only "When In Use" permission granted. Requesting "Always" for background tracking...');
+        await NativeLocationManager.requestAlways();
 
-      // Check again after requestAlways
-      final newStatus = await NativeLocationManager.authorizationStatus();
-      if (newStatus != 'always') {
-        print(
-            'LocationService: "Always" permission not granted. Background tracking may be limited.');
+        // Check again after requestAlways
+        final newStatus = await NativeLocationManager.authorizationStatus();
+        if (newStatus != 'always') {
+          print(
+              'LocationService: "Always" permission not granted. Background tracking may be limited.');
+        } else {
+          print(
+              'LocationService: "Always" permission granted. Full background tracking enabled.');
+        }
       } else {
-        print(
-            'LocationService: "Always" permission granted. Full background tracking enabled.');
+        print('LocationService: Authorization status: whenInUse');
       }
     } else if (status == 'always') {
       print('LocationService: "Always" permission already granted.');
@@ -129,14 +145,6 @@ class LocationService {
         (LocationData currentLocation) {
           // Try-catch para GPS status update
           _updateGPSStatusSafely(currentLocation.accuracy);
-
-          // If ref was cleared due to widget disposal, stop tracking
-          if (_ref == null && _isInitialized) {
-            print(
-                'LocationService: Widget disposed, stopping tracking automatically');
-            stopLocationTracking();
-            return;
-          }
 
           // Add to stream (asegurar que controller existe)
           _ensureController();

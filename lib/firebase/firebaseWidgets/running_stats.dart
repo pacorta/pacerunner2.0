@@ -12,8 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../widgets/distance_unit_provider.dart';
 import '../../widgets/distance_unit_conversion.dart';
 import '../../widgets/weekly_snapshot.dart';
+import '../../widgets/settings_sheet.dart';
 import '../../root_shell.dart';
-import '../../auth_wraper.dart';
 import '../../widgets/inline_goal_input.dart';
 
 // import '../../home_screen.dart';
@@ -51,182 +51,101 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
   void _confirmDeleteRun(String docId) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.grey.shade800,
-          title: const Text(
-            'Delete Run',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: const Text(
-            'Are you sure you want to delete this run? This action cannot be undone.',
-            style: TextStyle(color: Colors.white),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _deleteRun(docId);
-              },
-              child: const Text(
-                'Delete',
-                style: TextStyle(color: Colors.red),
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.delete_outline, color: Colors.red.shade600, size: 28),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Delete Run',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2C3E50),
+                ),
               ),
             ),
           ],
-        );
-      },
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Are you sure you want to delete this run?',
+              style: TextStyle(
+                fontSize: 16,
+                color: Color(0xFF34495E),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.warning, color: Colors.red.shade600, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'This action cannot be undone. Your run data will be permanently deleted.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF2C3E50),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _deleteRun(docId);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Delete Run',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   void _openSettingsSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      isScrollControlled: true,
-      builder: (context) {
-        return Consumer(builder: (context, refConsumer, _) {
-          final unit = refConsumer.watch(distanceUnitProvider);
-          final unitLabel = unit == DistanceUnit.miles ? 'Miles' : 'Kilometers';
-
-          return Padding(
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 20,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // User info section
-                Consumer(builder: (context, refConsumer, _) {
-                  final user = FirebaseAuth.instance.currentUser;
-                  return Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor:
-                              const Color.fromRGBO(140, 82, 255, 1.0),
-                          child: Text(
-                            user?.email?.substring(0, 1).toUpperCase() ?? 'U',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                user?.email ?? 'User',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Logged in',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                const SizedBox(height: 16),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text(
-                    'Units of Measurement',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                  trailing: Text(
-                    unitLabel,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black54,
-                    ),
-                  ),
-                  onTap: () {
-                    final notifier =
-                        refConsumer.read(distanceUnitProvider.notifier);
-                    notifier.state = unit == DistanceUnit.miles
-                        ? DistanceUnit.kilometers
-                        : DistanceUnit.miles;
-                  },
-                ),
-                const SizedBox(height: 8),
-                Divider(color: Colors.black.withOpacity(0.1)),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
-                      await FirebaseAuth.instance.signOut();
-                      if (context.mounted) {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          PageRouteBuilder(
-                            pageBuilder:
-                                (context, animation, secondaryAnimation) =>
-                                    const AuthWrapper(),
-                            transitionsBuilder: (context, animation,
-                                secondaryAnimation, child) {
-                              return child;
-                            },
-                            transitionDuration: Duration.zero,
-                            reverseTransitionDuration: Duration.zero,
-                          ),
-                          (route) => false,
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.logout, color: Colors.white),
-                    label: const Text('Logout',
-                        style: TextStyle(color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        });
-      },
-    );
+    SettingsSheet.show(context);
   }
 
   @override
@@ -543,14 +462,14 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            IconButton(
+                            /*IconButton(
                               icon: const Icon(Icons.info_outline,
                                   color: Colors.white, size: 16),
                               onPressed: () {},
                               padding: const EdgeInsets.all(2),
                               constraints: const BoxConstraints(
                                   minWidth: 24, minHeight: 24),
-                            ),
+                            ), */
                             IconButton(
                               icon: const Icon(Icons.share,
                                   color: Colors.white, size: 16),
@@ -683,6 +602,15 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
       currentUnit: unit,
     );
     final String time = run['time']?.toString() ?? '';
+
+    // Goal achievement data (available for future features)
+    final bool goalAchieved = run['goalAchieved'] ?? false;
+    final int? goalCompletionTimeSeconds = run['goalCompletionTimeSeconds'];
+    // Example usage:
+    // if (goalAchieved) {
+    //   // Show goal achievement badge 🎯
+    //   // Show completion time if available
+    // }
 
     showDialog(
       context: context,

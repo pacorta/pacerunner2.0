@@ -89,14 +89,38 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     // Inicializar LocationService con ref
     LocationService.initialize(ref);
 
-    // Empezar tracking GPS
-    final success = await LocationService.startLocationTracking();
+    // Verificar si el usuario rechazó permisos permanentemente antes
+    final permissionStatus = await LocationService.getPermissionStatus();
 
-    if (!success) {
-      // Manejar error de GPS
+    if (permissionStatus == PermissionStatus.deniedForever) {
+      // Usuario rechazó y dijo "Don't ask again" - ir directo a Settings
       if (mounted) {
         ref.read(runStateProvider.notifier).state = RunState.readyToStart;
-        _showGPSError();
+        _showLocationDeniedForeverDialog();
+      }
+      return;
+    }
+
+    // Empezar tracking GPS con prompts habilitados
+    final success = await LocationService.startLocationTracking(
+      promptIfDenied: true,
+      elevateToAlways: true,
+    );
+
+    if (!success) {
+      // Verificar nuevamente si fue un rechazo activo
+      final newStatus = await LocationService.getPermissionStatus();
+      if (mounted) {
+        ref.read(runStateProvider.notifier).state = RunState.readyToStart;
+
+        if (newStatus == PermissionStatus.denied ||
+            newStatus == PermissionStatus.deniedForever) {
+          // Usuario rechazó activamente - diálogo fuerte
+          _showLocationRequiredDialog();
+        } else {
+          // Error técnico normal
+          _showGPSError();
+        }
       }
     }
   }
@@ -112,13 +136,203 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     });
   }
 
-  // Mostrar error de GPS
+  // Mostrar error de GPS (problemas técnicos)
   void _showGPSError() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content:
             Text('GPS not available. You can start without precise location.'),
         backgroundColor: const Color(0xFFFFB6C1),
+      ),
+    );
+  }
+
+  // Mostrar diálogo cuando usuario rechazó permisos activamente
+  void _showLocationRequiredDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.location_off, color: Colors.red.shade600, size: 28),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Location Required',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2C3E50),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Pacebud needs location access to track your run accurately.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Color(0xFF34495E),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).pop(); // Return to home
+            },
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).pop(); // Return to home first
+              final opened = await LocationService.openAppSettings();
+              if (!opened) {
+                print('CurrentRun: Could not open app settings');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Open Settings',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Mostrar diálogo cuando permisos están permanentemente denegados
+  void _showLocationDeniedForeverDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.settings, color: Colors.orange.shade600, size: 28),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Enable Location',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2C3E50),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Location access is currently disabled for Pacebud.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Color(0xFF34495E),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info, color: Colors.blue.shade600, size: 20),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'To enable location:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2C3E50),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '1. Tap "Open Settings" below\n2. Find "Location" or "Privacy"\n3. Enable location for Pacebud',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF34495E),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).pop(); // Return to home
+            },
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).pop(); // Return to home first
+              final opened = await LocationService.openAppSettings();
+              if (!opened) {
+                print('CurrentRun: Could not open app settings');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade600,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Open Settings',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -291,26 +505,79 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
       {bool closeMainDialog = false}) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Colors.grey.shade800,
-          title: const Text(
-            'Discard Run',
-            style: TextStyle(color: Colors.white),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          content: const Text(
-            'Are you sure you want to discard this run? This action cannot be undone.',
-            style: TextStyle(color: Colors.white),
+          title: Row(
+            children: [
+              Icon(Icons.delete_outline, color: Colors.red.shade600, size: 28),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Discard Run',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2C3E50),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Are you sure you want to discard this run?',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF34495E),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.warning, color: Colors.red.shade600, size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'This action cannot be undone. All your progress will be lost.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF2C3E50),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: Colors.white),
+              child: Text(
+                'Keep Run',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-            TextButton(
+            ElevatedButton(
               onPressed: () async {
                 // Close the confirmation dialog
                 Navigator.of(context).pop();
@@ -372,9 +639,16 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 }
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
               child: const Text(
-                'Discard',
-                style: TextStyle(color: Colors.red),
+                'Discard Run',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ],

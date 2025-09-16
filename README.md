@@ -1,4 +1,4 @@
-# Pacebud Progress Log: September 15th, 2025
+# Pacebud Progress Log: September 15-16th, 2025
 
 ## Sign in with apple ID setup
 
@@ -73,11 +73,51 @@ flutter: LocationService: GPS status update failed (widget disposed): Bad state:
 3. If ref is cleared while tracking, automatically stop LocationService
 4. **Protected all GPS status update methods** with ref validation and cleanup
 
+## Goal Achievement Data
+
+Added goal achievement tracking and data persistence to Firebase for all three goal types.
+
+**Goal Types Supported:**
+1. **Time Only Goal** (e.g., "Run for 30 minutes")
+2. **Distance Only Goal** (e.g., "Run 5km") 
+3. **Distance Under Time Goal** (e.g., "Run 5km in under 30 minutes")
+
+**Data Saved to Firebase:**
+- `goalAchieved`: Boolean indicating if the user met their objective
+- `goalCompletionTimeSeconds`: Time when the goal was reached (null if not achieved)
+- `totalRunTimeSeconds`: Total duration of the entire run
+
+**Implementation Details:**
+- Reuses existing confetti logic to determine goal achievement
+- For distance-based goals: saves time when target distance was first reached
+- For time-only goals: saves target time as completion time when achieved
+- Captures both objective completion time AND total run duration for comprehensive analytics
+
+**Example Scenario:**
+```
+Goal: 5km in under 30 minutes
+Reality: User runs 6km in 32 minutes, reaching 5km at 25 minutes
+
+Saved Data:
+- goalAchieved: true (25min < 30min)
+- goalCompletionTimeSeconds: 1500 (25 minutes)
+- totalRunTimeSeconds: 1920 (32 minutes)
+```
+
+## Dialogs
+### 1. Added/improved alert dialogs for:
+- About Pacebud: Included "send feedback button" with LSApplicationQueriesSchemes (info.plist)
+- Data deletion
+- User log out
+- First time usage location instructions (maybeShowFirstLaunchPermissionGuide)
+- First time usage goal setup instructions (maybeShowFirstLaunchPermissionGuide)
+- No location warning --> Go to settings
+
+### 2. Centralized settings sheet into its own component
 
 ### What's Next
-- Make sure to save in the database whether the user reached their goal or not, how long it took them, or how far where they off completing it.
-- Add split pace stats + charts.
 - Launch for real user testing.
+- Add more stats (split pace stats + charts, elevation, elevation gain, cadence, etc.)
 
 ---
 #### (For earlier logs, see `PAST-LOGS.md`)
