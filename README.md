@@ -110,7 +110,7 @@ Saved Data:
 - Data deletion
 - User log out
 - First time usage location instructions (maybeShowFirstLaunchPermissionGuide)
-- First time usage goal setup instructions (maybeShowFirstLaunchPermissionGuide)
+- First time usage goal setup instructions (maybeShowFirstLaunchPermissionGuide) (asks right before going to run screen)
 - No location warning --> Go to settings
 
 ### 2. Centralized settings sheet into its own component

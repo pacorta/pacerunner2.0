@@ -7,7 +7,6 @@ import 'widgets/tracking_provider.dart';
 import 'widgets/distance_provider.dart';
 import 'widgets/custom_pace_provider.dart';
 import 'widgets/custom_distance_provider.dart';
-import 'widgets/readable_pace_provider.dart';
 import 'widgets/inline_goal_input.dart';
 import 'widgets/temp_goal_providers.dart';
 import 'widgets/settings_sheet.dart';
@@ -31,7 +30,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Pre-warm GPS as soon as Home is shown (non-blocking)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startLocationPreWarming();
-      _maybeShowFirstLaunchPermissionGuide();
+      _maybeShowFirstLaunchGoalGuide();
     });
   }
 
@@ -56,132 +55,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  Future<void> _maybeShowFirstLaunchPermissionGuide() async {
+  Future<void> _maybeShowFirstLaunchGoalGuide() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      const key = 'permission_guide_shown_v1';
+      const key = 'goal_guide_shown_v1';
       final shown = prefs.getBool(key) ?? false;
       if (shown) return;
 
       if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: const Text(
-              'Location Permission',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2C3E50),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'For best app performance:',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF34495E),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('👉', style: TextStyle(fontSize: 18)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: RichText(
-                        text: const TextSpan(
-                          style:
-                              TextStyle(fontSize: 15, color: Color(0xFF2C3E50)),
-                          children: [
-                            TextSpan(
-                              text: 'Step 1: ',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            TextSpan(text: 'Select '),
-                            TextSpan(
-                              text: '"Allow While Using App"',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF3498DB),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('👉', style: TextStyle(fontSize: 18)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: RichText(
-                        text: const TextSpan(
-                          style:
-                              TextStyle(fontSize: 15, color: Color(0xFF2C3E50)),
-                          children: [
-                            TextSpan(
-                              text: 'Step 2: ',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            TextSpan(text: 'Change to '),
-                            TextSpan(
-                              text: '"Always Allow"',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF3498DB),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  // Show goal setup guide after permission guide
-                  _showGoalSetupGuide();
-                },
-                style: TextButton.styleFrom(
-                  backgroundColor: const Color(0xFF3498DB),
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text(
-                  'Got it',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-            actionsPadding: const EdgeInsets.all(16),
-            actionsAlignment: MainAxisAlignment.center,
-          );
-        },
-      );
-
+      await _showGoalSetupGuide();
       await prefs.setBool(key, true);
     } catch (e) {
       // ignore
@@ -367,6 +249,125 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Future<void> _showFirstRunPermissionGuide() async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Location Permission',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF2C3E50),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'For best app performance:',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF34495E),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('👉', style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: RichText(
+                      text: const TextSpan(
+                        style:
+                            TextStyle(fontSize: 15, color: Color(0xFF2C3E50)),
+                        children: [
+                          TextSpan(
+                            text: 'Step 1: ',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          TextSpan(text: 'Select '),
+                          TextSpan(
+                            text: '"Allow While Using App"',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF3498DB),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('👉', style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: RichText(
+                      text: const TextSpan(
+                        style:
+                            TextStyle(fontSize: 15, color: Color(0xFF2C3E50)),
+                        children: [
+                          TextSpan(
+                            text: 'Step 2: ',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          TextSpan(text: 'Change to '),
+                          TextSpan(
+                            text: '"Always Allow"',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF3498DB),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFF3498DB),
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Got it',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+          actionsPadding: const EdgeInsets.all(16),
+          actionsAlignment: MainAxisAlignment.center,
+        );
+      },
+    );
+  }
+
   void _openSettingsSheet() {
     SettingsSheet.show(context);
   }
@@ -375,7 +376,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Check if user has set a goal
     final hasActiveGoal = ref.watch(customDistanceProvider) != null &&
         ref.watch(customPaceProvider) != null;
-    final goalText = ref.watch(readablePaceProvider);
     final hasUnconfirmedGoal = ref.watch(hasUnconfirmedGoalProvider);
 
     return Container(
@@ -430,7 +430,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _startRun() {
+  void _startRun() async {
+    // Check if this is the first time user starts a run
+    final prefs = await SharedPreferences.getInstance();
+    const key = 'permission_guide_shown_v1';
+    final permissionGuideShown = prefs.getBool(key) ?? false;
+
+    if (!permissionGuideShown) {
+      // Show permission guide first, then navigate
+      await _showFirstRunPermissionGuide();
+      await prefs.setBool(key, true);
+    }
+
     // Reset distance tracking
     ref.read(distanceProvider.notifier).state = 0.0;
     ref.read(trackingProvider.notifier).state = true;
