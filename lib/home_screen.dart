@@ -58,13 +58,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _maybeShowFirstLaunchGoalGuide() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      const key = 'goal_guide_shown_v1';
-      final shown = prefs.getBool(key) ?? false;
-      if (shown) return;
+      const aboutKey = 'about_dialog_shown_v1';
+      const goalKey = 'goal_guide_shown_v1';
+
+      // Show About dialog on very first launch
+      final aboutShown = prefs.getBool(aboutKey) ?? false;
+      if (!aboutShown && mounted) {
+        await showAboutPacebudDialog(context);
+        await prefs.setBool(aboutKey, true);
+      }
+
+      // Then show goal guide if never shown
+      final goalShown = prefs.getBool(goalKey) ?? false;
+      if (goalShown) return;
 
       if (!mounted) return;
       await _showGoalSetupGuide();
-      await prefs.setBool(key, true);
+      await prefs.setBool(goalKey, true);
     } catch (e) {
       // ignore
     }
@@ -106,7 +116,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('🏃', style: TextStyle(fontSize: 18)),
+                  const Icon(Icons.straighten,
+                      size: 20, color: Color(0xFF2C3E50)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: RichText(
@@ -138,7 +149,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('⏱️', style: TextStyle(fontSize: 18)),
+                  const Icon(Icons.access_time,
+                      size: 20, color: Color(0xFF2C3E50)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: RichText(
@@ -170,7 +182,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('🎯', style: TextStyle(fontSize: 18)),
+                  const Icon(Icons.speed, size: 20, color: Color(0xFF2C3E50)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: RichText(
@@ -190,7 +202,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               color: Color(0xFF9B59B6),
                             ),
                           ),
-                          TextSpan(text: ' for a pace challenge'),
+                          TextSpan(
+                              text:
+                                  ' for a pace challenge. Beat your projection!'),
                         ],
                       ),
                     ),

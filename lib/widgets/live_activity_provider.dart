@@ -161,7 +161,7 @@ class LiveActivityNotifier extends StateNotifier<bool> {
         // Distance + Time goal
         final double td = targetDistance ?? 0.0;
         goal =
-            "${td.toStringAsFixed(1)} $distanceUnitString in $targetTimeFormatted";
+            "${td.toStringAsFixed(1)} $distanceUnitString under $targetTimeFormatted";
         final projection = _ref.read(projectedFinishProvider);
         predictedFinish = projection["projectedTime"];
         differenceSeconds = _ref.read(timeDifferenceSecondsProvider);
