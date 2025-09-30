@@ -22,6 +22,8 @@ import 'goal_progress_provider.dart';
 import 'distance_unit_provider.dart';
 import 'target_providers.dart';
 import 'time_goal_provider.dart';
+import 'run_state_provider.dart';
+import '../services/live_activity_service.dart';
 
 class RunSummaryScreen extends ConsumerStatefulWidget {
   final Uint8List? mapSnapshot;
@@ -131,6 +133,7 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
   }
 
   void _saveRun() async {
+    await LiveActivityService.endRunningActivity();
     // Determine if goal was achieved (reuse existing logic)
     final hasDistanceTimeGoal = ref.watch(hadDistanceTimeGoalProvider);
     final hasDistanceOnlyGoal = ref.watch(hadDistanceOnlyGoalProvider);
@@ -206,6 +209,9 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
 
     // Clear goal so Home shows blank after finishing
     clearGoalProviders(ref);
+
+    // Reset run state so next session starts fresh
+    ref.read(runStateProvider.notifier).state = RunState.fetchingGPS;
 
     // Navigate to Running Stats Page with NO transitions
     Navigator.pushReplacement(
@@ -340,7 +346,8 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
     );
   }
 
-  void _discardRun() {
+  void _discardRun() async {
+    await LiveActivityService.endRunningActivity();
     // Reset Providers
     ref.read(distanceProvider.notifier).state = 0.0;
     ref.read(speedProvider.notifier).state = 0.0;
@@ -355,6 +362,9 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
 
     // Clear goal so Home shows blank when discarding
     clearGoalProviders(ref);
+
+    // Reset run state so next session starts fresh
+    ref.read(runStateProvider.notifier).state = RunState.fetchingGPS;
 
     // Navigate back to root (RootShell) to restore bottom nav
     Navigator.of(context).popUntil((route) => route.isFirst);

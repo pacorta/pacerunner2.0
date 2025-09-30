@@ -34,6 +34,7 @@ import 'run_summary_screen.dart';
 import '../services/location_service.dart';
 import 'gps_status_provider.dart';
 import 'live_activity_provider.dart';
+import '../services/live_activity_service.dart';
 
 class CurrentRun extends ConsumerStatefulWidget {
   const CurrentRun({super.key});
@@ -717,6 +718,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
                   ref.read(locationsProvider.notifier).state = [];
                   ref.read(polylineCoordinatesProvider.notifier).state = [];
                 } catch (_) {}
+                await LiveActivityService.endRunningActivity();
 
                 if (mounted) {
                   Navigator.of(context).popUntil((route) => route.isFirst);

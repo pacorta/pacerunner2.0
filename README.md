@@ -1,60 +1,33 @@
-# Pacebud Progress Log: September 15-16th, 2025
+# Pacebud Progress Log: Sept 24th, 2025
 
-## Account Deletion Feature - Apple App Store Compliance
+## App is now live on the AppStore!
 
-Implemented comprehensive account deletion functionality to meet Apple App Store Review Guidelines 5.1.1(v), which requires "apps that support account creation to also allow users to delete their accounts".
+## Fixed Bugs:
+- Live activity would not stop if user started a run and ran less than 0.1 mi/km. 
+  - Solution: stop it when pressing 'discard' on the "no movement detected" warning.
 
-### **Features**
 
-**1. Account Deletion UI:**
-- Added "Delete Account" option in Settings → Account settings
-- Easy to find and access (Apple requirement)
-- Clear visual hierarchy with warning indicators
+## User Feedback:
 
-**2. Complete Data Deletion:**
-- Deletes user's Firebase Auth account
-- Removes all user data from Firestore:
-  - All running activities and stats
-  - User profile and settings
-  - Complete data cleanup (not just deactivation)
+### Bugs:
+- Goal is set to 8.0mi under 1h25mins, we finish race at 8.0 mi in 1h21mi41s. The app thinks user didnt reach thier goal because they were “short by 0.0 mi”.
+- Save the runs just when the ends the run, not when they confirm after. User tends to exit the app fast.
+- Run completed screen (or any other screen) can be enlarged if the user has the text of their phone larger, resulting in not seeing the 'ok button immediatly. Given that we currently save the run when they press this button, if they leave without pressing this, their run will not be saved.
 
-**3. User Safety & Transparency:**
-- Clear confirmation dialog explaining what will be deleted
-- "You will lose:" section listing specific data types
-- "This action cannot be undone" warning
-- Multiple confirmation steps to prevent accidental deletion
+### Improve soon:
+- Save the map photo in the user’s data. If user has no map, don’t show anything.
+- Add the projected finish time even when the user doesn’t put a goal time.
+- Make the weekly data also be about the last month, and last 10 weeks. Every dot should be a quantity of miles/km.
+- Add medals for completing the goal.
+- Make it easier to share on social media (maybe with appinio_social_share 0.3.2).
+- The user should leave the “end run” button pressed for about a second to make sure they intended to finish the run (or add an alert to confirm).
 
-**4. Security Compliance:**
-- Handles Firebase re-authentication requirements
-- When re-auth needed, forces user to sign out and sign in again
-- No bypass options for security requirements
-
-**5. Error Handling:**
-- Graceful handling of network failures
-- Clear error messages for users
-- Loading indicators during deletion process
-- Automatic navigation to login after successful deletion
-
-### **Apple App Store Compliance:**
-
-**Easy to find**: Located in Settings → Account settings  
-**Complete deletion**: Removes account + all associated data  
-**Clear process**: User understands exactly what happens  
-**No workarounds**: Cannot just deactivate or disable  
-**Proper confirmation**: Multiple steps prevent accidents  
-**Security compliant**: Respects Firebase re-authentication  
-
-## UI/UX changes:
-- "Help" button in goal input"
-- Change wording in live activity ("under" instead of "in")
-- Improved the onboarding to include the "About Pacebud" dialog.
-- Added expandable "Account settings" section in Settings
-- Reorganized Settings UI with better visual hierarchy
-- Streamlined re-authentication flow with single "Sign Out" option
-
-## What's Next
-- Launch for real user testing and feedback.
-- Add more stats (split pace stats + charts, elevation, elevation gain, cadence, etc.)
+### Nice to have:
+- Add a streak by week like Hevy/Strava.
+- Add a graph that shows how your endurance/speed has improved in the previous runs.
+- Additional: Add a function to plan ahead by calculating the distance of a route (with google maps calculate distance feature).
+- Add the split pace alerts option.
+- If we eventually add social media, a user should be able to challenge their friends for time/distance/pace runs and bet trophies or something.
 
 ---
 #### (For earlier logs, see `PAST-LOGS.md`)
