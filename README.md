@@ -1,4 +1,4 @@
-# Pacebud Progress Log: Sept 24th, 2025
+# Pacebud Progress Log: Sept 24-29th, 2025
 
 ## App is now live on the AppStore!
 
@@ -6,23 +6,33 @@
 - Live activity would not stop if user started a run and ran less than 0.1 mi/km. 
   - Solution: stop it when pressing 'discard' on the "no movement detected" warning.
 
+- Distance+time and distance-only goals could show "short by 0.00" or save goalAchieved=false when finishing right at the target distance. UI showed a rounded distance (ex. 8.0 mi) while the threshold crossing used raw precision, so the "first reach" timestamp could be missing.
+  - Solution:
+    - Use raw distance internally (and pass it to summary) for consistent evaluation.
+    - Apply epsilon (0.01 mi / 0.02 km) to treat edge cases as reached.
+    - If the "first reach" timestamp is missing but distance is effectively reached, fall back to total run time for goal evaluation and to save goalCompletionTimeSeconds.
+    - For distance-only headers, use the same epsilon and clamp tiny remainders (< epsilon) to 0.00 so the UI doesn’t show misleading "short by 0.00".
+    - Presentational only: format distance in the card to 2 decimals; evaluation keeps full precision.
 
 ## User Feedback:
 
 ### Bugs:
-- Goal is set to 8.0mi under 1h25mins, we finish race at 8.0 mi in 1h21mi41s. The app thinks user didnt reach thier goal because they were “short by 0.0 mi”.
 - Save the runs just when the ends the run, not when they confirm after. User tends to exit the app fast.
 - Run completed screen (or any other screen) can be enlarged if the user has the text of their phone larger, resulting in not seeing the 'ok button immediatly. Given that we currently save the run when they press this button, if they leave without pressing this, their run will not be saved.
+- When putting a goal distance less than 1.0 (mi/km), we tell the user they cannot do that, yet we continue to the run screen without any goal setup. I think:
+  - 1) We should not let them continue, or...
+  - 2) The 1.0 restriction is too high, but how low should we go? Should we remove the restrictions overall and let the user use the app weirdly if they wish to do so? (ex. goal of 0.90 mi/km in 1 second)?
 
-### Improve soon:
-- Save the map photo in the user’s data. If user has no map, don’t show anything.
-- Add the projected finish time even when the user doesn’t put a goal time.
-- Make the weekly data also be about the last month, and last 10 weeks. Every dot should be a quantity of miles/km.
-- Add medals for completing the goal.
-- Make it easier to share on social media (maybe with appinio_social_share 0.3.2).
-- The user should leave the “end run” button pressed for about a second to make sure they intended to finish the run (or add an alert to confirm).
+### Improve soon (In order of importance):
+1) Save the map photo in the user’s data. If user has no map, don’t show anything. Make it optional to share it on user's story (Include map? Y/N)
+2) Add the projected finish time even when the user doesn’t put a goal time.
+3) Make the weekly data also be about the last month, and last 10 weeks. Every dot should be a quantity of miles/km.
+4) Add medals/rewards for completing a goal. Then by completing their longest ever run/ fastest time in the 5k, 10k 1/2mara, or marathon.
+5) Make it easier to share on social media (maybe with appinio_social_share 0.3.2).
+6) The user should leave the “end run” button pressed for about a second to make sure they intended to finish the run (or add an alert to confirm).
+7) Improve DRY occassions.
 
-### Nice to have:
+### Would be nice to have:
 - Add a streak by week like Hevy/Strava.
 - Add a graph that shows how your endurance/speed has improved in the previous runs.
 - Additional: Add a function to plan ahead by calculating the distance of a route (with google maps calculate distance feature).

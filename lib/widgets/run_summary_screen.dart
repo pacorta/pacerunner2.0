@@ -141,6 +141,7 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
     final firstReachTimeSecs = ref.watch(firstReachTargetTimeSecondsProvider);
     final targetTimeSecs = ref.watch(targetTimeProvider);
     final targetDistance = ref.watch(targetDistanceProvider);
+    final unit = ref.watch(distanceUnitProvider);
 
     bool goalAchieved = false;
     int? goalCompletionTimeSeconds; // When the objective was reached
@@ -154,20 +155,38 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
           int.parse(totalParts[2]);
     }
 
+    // Epsilon tolerance to absorb rounding/timing edges
+    final double eps =
+        unit == DistanceUnit.kilometers ? 0.02 : 0.01; // km or miles
+    final bool reachedByDistance = targetDistance != null
+        ? (widget.distance + eps >= targetDistance)
+        : false;
+
+    // Prefer the precise first reach time; if missing but distance reached,
+    // fall back to total run time seconds as the reach time.
+    double? reachTimeSecs = firstReachTimeSecs;
+    if (reachTimeSecs == null &&
+        reachedByDistance &&
+        totalRunTimeSeconds != null) {
+      reachTimeSecs = totalRunTimeSeconds.toDouble();
+    }
+
     if (hasDistanceTimeGoal &&
         targetDistance != null &&
         targetTimeSecs != null) {
-      if (firstReachTimeSecs != null) {
-        // Always store the time when the target distance was first reached
-        goalCompletionTimeSeconds = firstReachTimeSecs.round();
-        // Goal achieved only if reached within target time
-        goalAchieved = firstReachTimeSecs <= targetTimeSecs;
+      if (reachTimeSecs != null) {
+        goalCompletionTimeSeconds = reachTimeSecs.round();
+        goalAchieved = reachTimeSecs <= targetTimeSecs;
       }
     } else if (hasDistanceOnlyGoal && targetDistance != null) {
-      goalAchieved = widget.distance >= targetDistance;
-      // Store the time when the target distance was first reached (if reached)
-      if (firstReachTimeSecs != null) {
-        goalCompletionTimeSeconds = firstReachTimeSecs.round();
+      final metByDistance = widget.distance + eps >= targetDistance;
+      goalAchieved = metByDistance;
+      if (goalAchieved) {
+        final fallback =
+            (firstReachTimeSecs ?? totalRunTimeSeconds?.toDouble());
+        if (fallback != null) {
+          goalCompletionTimeSeconds = fallback.round();
+        }
       }
     } else if (hasTimeOnlyGoal) {
       final targetSeconds = ref.watch(timeOnlyGoalSecondsProvider);
@@ -392,12 +411,24 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
     if (hasDistanceTimeGoal &&
         targetDistance != null &&
         targetTimeSecs != null) {
-      if (firstReachTimeSecs != null) {
-        goalMet = firstReachTimeSecs <= targetTimeSecs;
-      } else {
-        // If never reached target distance, goal not met
-        goalMet = false;
+      // Apply same epsilon tolerance and fallback as in _saveRun()
+      final double eps =
+          unit == DistanceUnit.kilometers ? 0.02 : 0.01; // km or miles
+      final bool reachedByDistance = widget.distance + eps >= targetDistance;
+
+      double? reachTimeSecs = firstReachTimeSecs;
+      if (reachTimeSecs == null && reachedByDistance) {
+        // Fallback to total elapsed from finalTime string
+        final parts = widget.finalTime.split(':');
+        if (parts.length == 3) {
+          reachTimeSecs = (int.parse(parts[0]) * 3600 +
+                  int.parse(parts[1]) * 60 +
+                  int.parse(parts[2]))
+              .toDouble();
+        }
       }
+
+      goalMet = reachTimeSecs != null && reachTimeSecs <= targetTimeSecs;
 
       if (goalMet) {
         headerTitle = 'You met your goal!';
@@ -422,22 +453,22 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
       } else {
         headerTitle = 'Maybe next time 😅';
 
-        if (firstReachTimeSecs == null) {
-          // User finished before reaching target distance → show distance short
+        if (firstReachTimeSecs == null &&
+            !(widget.distance +
+                    (unit == DistanceUnit.kilometers ? 0.02 : 0.01) >=
+                targetDistance)) {
+          // Truly short on distance
           final unitLabel = unit == DistanceUnit.kilometers ? 'km' : 'mi';
           final remaining =
               (targetDistance - widget.distance).clamp(0, double.infinity);
-          String remainingText;
-          if (remaining >= 1.0) {
-            remainingText = remaining.toStringAsFixed(1);
-          } else {
-            remainingText = remaining.toStringAsFixed(2);
-          }
+          final remainingText = remaining >= 1.0
+              ? remaining.toStringAsFixed(1)
+              : remaining.toStringAsFixed(2);
           headerSubtitle = 'You were short by $remainingText $unitLabel';
         } else {
           // User reached distance but after target time → show time off
-          final diff =
-              (firstReachTimeSecs - targetTimeSecs).clamp(0, double.infinity);
+          final diff = ((firstReachTimeSecs ?? 0) - targetTimeSecs)
+              .clamp(0, double.infinity);
           final dm = (diff / 60).floor();
           final ds = (diff % 60).floor();
           final offText = dm > 0 ? '${dm}m ${ds}s' : '${ds}s';
@@ -445,15 +476,20 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
         }
       }
     } else if (hasDistanceOnlyGoal && targetDistance != null) {
-      // Distance-only goal evaluation
+      // Distance-only goal evaluation (apply epsilon tolerance)
       final unitLabel = unit == DistanceUnit.kilometers ? 'km' : 'mi';
-      if (widget.distance >= targetDistance) {
+      final double eps = unit == DistanceUnit.kilometers ? 0.02 : 0.01;
+      final bool reachedByDistance = widget.distance + eps >= targetDistance;
+
+      if (reachedByDistance) {
         headerTitle = 'You met your goal!';
         headerSubtitle = '${targetDistance.toStringAsFixed(1)} $unitLabel';
       } else {
         headerTitle = 'Maybe next time 😅';
-        final remaining =
+        double remaining =
             (targetDistance - widget.distance).clamp(0, double.infinity);
+        // If remaining is within epsilon, show 0.00 to avoid confusing 0.00 shorts
+        if (remaining < eps) remaining = 0.0;
         final remainingText = remaining >= 1.0
             ? remaining.toStringAsFixed(1)
             : remaining.toStringAsFixed(2);
@@ -582,7 +618,7 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
                               key: _repaintBoundaryKey,
                               child: RunSummaryCard(
                                 mapSnapshot: widget.mapSnapshot,
-                                distance: widget.distance.toString(),
+                                distance: widget.distance.toStringAsFixed(2),
                                 pace: widget.finalPace,
                                 time: widget.finalTime,
                                 distanceUnit: widget.distanceUnitString,

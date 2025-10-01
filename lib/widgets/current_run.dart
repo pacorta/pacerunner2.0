@@ -24,6 +24,7 @@ import 'readable_pace_provider.dart';
 import 'custom_pace_provider.dart';
 import 'custom_distance_provider.dart';
 import 'distance_unit_as_string_provider.dart';
+import 'distance_unit_conversion.dart';
 import 'current_pace_in_seconds_provider.dart';
 import 'target_providers.dart';
 import 'distance_unit_provider.dart';
@@ -462,9 +463,12 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
     ref.read(trackingProvider.notifier).state = false;
     print('CurrentRun: Tracking stopped, cleanup activated');
 
-    // Paso 4: Capturar datos antes de resetear
-    String distanceString = ref.read(formattedDistanceProvider).split(' ')[0];
-    double distance = double.tryParse(distanceString) ?? 0.0;
+    // Paso 4: Capturar datos antes de resetear (usar distancia cruda con precisión)
+    final distanceKmRaw = ref.read(distanceProvider);
+    final unit = ref.read(distanceUnitProvider);
+    double distance = unit == DistanceUnit.miles
+        ? kilometersToMiles(distanceKmRaw)
+        : distanceKmRaw;
     String distanceUnitString = ref.read(formattedUnitString);
     final finalTime = ref.read(formattedElapsedTimeProvider);
     final finalPace = ref.read(stableAveragePaceProvider);
