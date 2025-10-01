@@ -14,10 +14,16 @@
     - For distance-only headers, use the same epsilon and clamp tiny remainders (< epsilon) to 0.00 so the UI doesn’t show misleading "short by 0.00".
     - Presentational only: format distance in the card to 2 decimals; evaluation keeps full precision.
 
+- Some users don't wait around to press "Done", which is when we save the run.
+  - Solution: 
+    - Moved save flow from "Done" button to "FINISH" button so runs persist immediately.
+    - Created `RunSaveService` to modularly build and persist run data.
+    - Modified `saveRunData()` to return Firestore doc ID for tracking.
+    - Pass saved doc ID to `RunSummaryScreen` so "Discard run" can delete it from database.
+    - Added `deleteRun(docId)` method to `RunSaveService` for modular deletion
 ## User Feedback:
 
 ### Bugs:
-- Save the runs just when the ends the run, not when they confirm after. User tends to exit the app fast.
 - Run completed screen (or any other screen) can be enlarged if the user has the text of their phone larger, resulting in not seeing the 'ok button immediatly. Given that we currently save the run when they press this button, if they leave without pressing this, their run will not be saved.
 - When putting a goal distance less than 1.0 (mi/km), we tell the user they cannot do that, yet we continue to the run screen without any goal setup. I think:
   - 1) We should not let them continue, or...

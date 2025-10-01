@@ -36,6 +36,7 @@ import '../services/location_service.dart';
 import 'gps_status_provider.dart';
 import 'live_activity_provider.dart';
 import '../services/live_activity_service.dart';
+import '../services/run_save_service.dart';
 
 class CurrentRun extends ConsumerStatefulWidget {
   const CurrentRun({super.key});
@@ -479,11 +480,31 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
       return;
     }
 
+    // Guardar el run inmediatamente (antes de navegar a resumen)
+    String? savedRunDocId;
+    try {
+      final runData = RunSaveService.buildRunData(
+        ref: ref,
+        distance: distance,
+        distanceUnitString: distanceUnitString,
+        finalTime: finalTime,
+        finalPace: finalPace,
+        runStartTime: _runStartTime,
+      );
+      savedRunDocId = await RunSaveService.saveRunData(runData);
+      // ignore: avoid_print
+      print('CurrentRun: run saved at FINISH with docId: $savedRunDocId');
+      await LiveActivityService.endRunningActivity();
+    } catch (e) {
+      // ignore: avoid_print
+      print('CurrentRun: error saving run at FINISH: $e');
+    }
+
     // Paso 5: Ahora si reseteamos el cronómetro y cambiamos el estado
     ref.read(pausableTimerProvider.notifier).stop();
     ref.read(runStateProvider.notifier).state = RunState.finished;
 
-    // Navigate to RunSummaryScreen instead of showing dialog
+    // Navigate to RunSummaryScreen
     Navigator.push(
       context,
       PageRouteBuilder(
@@ -495,6 +516,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
           finalTime: finalTime,
           finalPace: finalPace,
           runStartTime: _runStartTime,
+          savedRunDocId: savedRunDocId,
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return child; // No transition, just show the page

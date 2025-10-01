@@ -8,8 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:confetti/confetti.dart';
 import 'run_summary_card.dart';
 import '../firebase/firebaseWidgets/running_stats.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+// Removed direct Firebase imports; saving now happens at FINISH
 import 'distance_provider.dart';
 import 'speed_provider.dart';
 import 'elapsed_time_provider.dart';
@@ -24,6 +23,7 @@ import 'target_providers.dart';
 import 'time_goal_provider.dart';
 import 'run_state_provider.dart';
 import '../services/live_activity_service.dart';
+import '../services/run_save_service.dart';
 
 class RunSummaryScreen extends ConsumerStatefulWidget {
   final Uint8List? mapSnapshot;
@@ -32,6 +32,7 @@ class RunSummaryScreen extends ConsumerStatefulWidget {
   final String finalTime;
   final String finalPace;
   final DateTime? runStartTime;
+  final String? savedRunDocId;
 
   const RunSummaryScreen({
     super.key,
@@ -41,6 +42,7 @@ class RunSummaryScreen extends ConsumerStatefulWidget {
     required this.finalTime,
     required this.finalPace,
     this.runStartTime,
+    this.savedRunDocId,
   });
 
   @override
@@ -134,87 +136,8 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
 
   void _saveRun() async {
     await LiveActivityService.endRunningActivity();
-    // Determine if goal was achieved (reuse existing logic)
-    final hasDistanceTimeGoal = ref.watch(hadDistanceTimeGoalProvider);
-    final hasDistanceOnlyGoal = ref.watch(hadDistanceOnlyGoalProvider);
-    final hasTimeOnlyGoal = ref.watch(hadTimeOnlyGoalProvider);
-    final firstReachTimeSecs = ref.watch(firstReachTargetTimeSecondsProvider);
-    final targetTimeSecs = ref.watch(targetTimeProvider);
-    final targetDistance = ref.watch(targetDistanceProvider);
-    final unit = ref.watch(distanceUnitProvider);
 
-    bool goalAchieved = false;
-    int? goalCompletionTimeSeconds; // When the objective was reached
-    int? totalRunTimeSeconds; // Total run duration
-
-    // Parse total run duration from final time string (hh:mm:ss)
-    final totalParts = widget.finalTime.split(':');
-    if (totalParts.length == 3) {
-      totalRunTimeSeconds = int.parse(totalParts[0]) * 3600 +
-          int.parse(totalParts[1]) * 60 +
-          int.parse(totalParts[2]);
-    }
-
-    // Epsilon tolerance to absorb rounding/timing edges
-    final double eps =
-        unit == DistanceUnit.kilometers ? 0.02 : 0.01; // km or miles
-    final bool reachedByDistance = targetDistance != null
-        ? (widget.distance + eps >= targetDistance)
-        : false;
-
-    // Prefer the precise first reach time; if missing but distance reached,
-    // fall back to total run time seconds as the reach time.
-    double? reachTimeSecs = firstReachTimeSecs;
-    if (reachTimeSecs == null &&
-        reachedByDistance &&
-        totalRunTimeSeconds != null) {
-      reachTimeSecs = totalRunTimeSeconds.toDouble();
-    }
-
-    if (hasDistanceTimeGoal &&
-        targetDistance != null &&
-        targetTimeSecs != null) {
-      if (reachTimeSecs != null) {
-        goalCompletionTimeSeconds = reachTimeSecs.round();
-        goalAchieved = reachTimeSecs <= targetTimeSecs;
-      }
-    } else if (hasDistanceOnlyGoal && targetDistance != null) {
-      final metByDistance = widget.distance + eps >= targetDistance;
-      goalAchieved = metByDistance;
-      if (goalAchieved) {
-        final fallback =
-            (firstReachTimeSecs ?? totalRunTimeSeconds?.toDouble());
-        if (fallback != null) {
-          goalCompletionTimeSeconds = fallback.round();
-        }
-      }
-    } else if (hasTimeOnlyGoal) {
-      final targetSeconds = ref.watch(timeOnlyGoalSecondsProvider);
-      if (targetSeconds != null && totalRunTimeSeconds != null) {
-        goalAchieved = totalRunTimeSeconds >= targetSeconds;
-        if (goalAchieved) {
-          // For time-only goals, the completion time is the target time itself
-          goalCompletionTimeSeconds = targetSeconds.round();
-        }
-      }
-    }
-
-    // Prepare run data
-    final runData = {
-      'distance': widget.distance,
-      'distanceUnitString': widget.distanceUnitString,
-      'time': widget.finalTime,
-      'averagePace': widget.finalPace,
-      'startTime': widget.runStartTime?.toIso8601String(),
-      'date': widget.runStartTime?.toString().split(' ')[0],
-      'timestamp': FieldValue.serverTimestamp(),
-      // Goal achievement data
-      'goalAchieved': goalAchieved,
-      'goalCompletionTimeSeconds': goalCompletionTimeSeconds,
-      'totalRunTimeSeconds': totalRunTimeSeconds,
-    };
-
-    // Reset Providers
+    // Reset Providers (data was already saved on FINISH)
     ref.read(distanceProvider.notifier).state = 0.0;
     ref.read(speedProvider.notifier).state = 0.0;
     ref.read(elapsedTimeProvider.notifier).state = '00:00:00';
@@ -237,7 +160,7 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
       context,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            RunningStatsPage(newRunData: runData),
+            const RunningStatsPage(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return child; // No transition, just show the page
         },
@@ -245,28 +168,6 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
         reverseTransitionDuration: Duration.zero,
       ),
     );
-
-    // Save the run data to Firebase
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      // Debug: Print goal achievement data
-      debugPrint('RunSummary: Saving run with goal data:');
-      debugPrint('  - Goal Achieved: $goalAchieved');
-      debugPrint(
-          '  - Goal Completion Time: $goalCompletionTimeSeconds seconds');
-      debugPrint('  - Total Run Time: $totalRunTimeSeconds seconds');
-
-      FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('runs')
-          .add(runData)
-          .then((_) {
-        debugPrint('Run saved successfully with goal tracking');
-      }).catchError((error) {
-        debugPrint('Error saving run: $error');
-      });
-    }
   }
 
   void _showDiscardConfirmation() {
@@ -366,6 +267,18 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
   }
 
   void _discardRun() async {
+    // Delete the saved run from database if we have the docId
+    if (widget.savedRunDocId != null) {
+      try {
+        await RunSaveService.deleteRun(widget.savedRunDocId!);
+        // ignore: avoid_print
+        print('RunSummary: deleted saved run ${widget.savedRunDocId}');
+      } catch (e) {
+        // ignore: avoid_print
+        print('RunSummary: error deleting run: $e');
+      }
+    }
+
     await LiveActivityService.endRunningActivity();
     // Reset Providers
     ref.read(distanceProvider.notifier).state = 0.0;
