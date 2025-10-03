@@ -482,23 +482,95 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
 
     // Guardar el run inmediatamente (antes de navegar a resumen)
     String? savedRunDocId;
-    try {
-      final runData = RunSaveService.buildRunData(
-        ref: ref,
-        distance: distance,
-        distanceUnitString: distanceUnitString,
-        finalTime: finalTime,
-        finalPace: finalPace,
-        runStartTime: _runStartTime,
+
+    // Build run data first
+    final runData = RunSaveService.buildRunData(
+      ref: ref,
+      distance: distance,
+      distanceUnitString: distanceUnitString,
+      finalTime: finalTime,
+      finalPace: finalPace,
+      runStartTime: _runStartTime,
+    );
+
+    // Show loading dialog
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) => PopScope(
+          canPop: false,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(
+                  color: Colors.blue,
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Saving run...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF2C3E50),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Please wait',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
+    }
+
+    // Try to save to Firestore
+    bool savedSuccessfully = false;
+    try {
       savedRunDocId = await RunSaveService.saveRunData(runData);
       // ignore: avoid_print
       print('CurrentRun: run saved at FINISH with docId: $savedRunDocId');
-      await LiveActivityService.endRunningActivity();
+      savedSuccessfully = true;
     } catch (e) {
       // ignore: avoid_print
       print('CurrentRun: error saving run at FINISH: $e');
+
+      // Save locally as backup
+      await RunSaveService.saveLocalBackup(runData);
+      // ignore: avoid_print
+      print('CurrentRun: run saved locally as backup');
     }
+
+    // Close loading dialog
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+
+    // Show result message if save failed
+    if (!savedSuccessfully && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Run saved locally. Will sync when online.',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+
+    await LiveActivityService.endRunningActivity();
 
     // Paso 5: Ahora si reseteamos el cronómetro y cambiamos el estado
     ref.read(pausableTimerProvider.notifier).stop();

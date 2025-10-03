@@ -20,7 +20,11 @@
     - Created `RunSaveService` to modularly build and persist run data.
     - Modified `saveRunData()` to return Firestore doc ID for tracking.
     - Pass saved doc ID to `RunSummaryScreen` so "Discard run" can delete it from database.
-    - Added `deleteRun(docId)` method to `RunSaveService` for modular deletion
+    - Added `deleteRun(docId)` method to `RunSaveService` for modular deletion.
+    - Added loading dialog "Saving run..." so user sees feedback (no frozen screen).
+    - Implemented local backup with `SharedPreferences` if Firestore fails or user is offline.
+    - Auto-sync pending runs on app startup via `AuthWrapper` (2s delay for Firebase init).
+    - Show orange snackbar if save fails: "Run saved locally. Will sync when online."
 
 - Goal distance validation was too strict (1.0 minimum) and didn't prevent navigation on invalid input.
   - Solution:
