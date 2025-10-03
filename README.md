@@ -29,19 +29,28 @@
     - Made `setGoalFromTempSelections` async and return bool to prevent navigation on validation failure.
     - Reused dialog pattern from existing code for consistency (DRY principle).
 
+## New Features:
+- **Projected finish time now shows for distance-only goals**
+  - Users can now see their projected finish time based on current pace even when they only set a distance goal (without a time target).
+  - Implementation:
+    - Modified `projected_finish_provider.dart` to calculate projections with just distance (removed requirement for target time).
+    - Updated `prediction_display.dart` to show projection in white for distance-only goals (no color coding since there's no time to compare against).
+    - Updated `live_activity_provider.dart` to display projection for distance-only goals on iOS Live Activities.
+    - Fixed `current_run.dart` to show `PredictionDisplay` when only distance is set.
+  - Behavior: Distance+time goals still show color coding (red when behind, white/green when on track), while distance-only goals always display in white.
+
 ## User Feedback:
 
 ### Bugs:
 - Run completed screen (or any other screen) can be enlarged if the user has the text of their phone larger, resulting in not seeing the 'ok button immediatly. Given that we currently save the run when they press this button, if they leave without pressing this, their run will not be saved.
 
 ### Improve soon (In order of importance):
-1) Save the map photo in the user’s data. If user has no map, don’t show anything. Make it optional to share it on user's story (Include map? Y/N)
-2) Add the projected finish time even when the user doesn’t put a goal time.
-3) Make the weekly data also be about the last month, and last 10 weeks. Every dot should be a quantity of miles/km.
-4) Add medals/rewards for completing a goal. Then by completing their longest ever run/ fastest time in the 5k, 10k 1/2mara, or marathon.
-5) Make it easier to share on social media (maybe with appinio_social_share 0.3.2).
-6) The user should leave the “end run” button pressed for about a second to make sure they intended to finish the run (or add an alert to confirm).
-7) Improve DRY occassions.
+1) Save the map photo in the user's data. If user has no map, don't show anything. Make it optional to share it on user's story (Include map? Y/N)
+2) Make the weekly data also be about the last month, and last 10 weeks. Every dot should be a quantity of miles/km.
+3) Add medals/rewards for completing a goal. Then by completing their longest ever run/ fastest time in the 5k, 10k 1/2mara, or marathon.
+4) Make it easier to share on social media (maybe with appinio_social_share 0.3.2).
+5) The user should leave the "end run" button pressed for about a second to make sure they intended to finish the run (or add an alert to confirm).
+6) Improve DRY occassions.
 
 ### Would be nice to have:
 - Add a streak by week like Hevy/Strava.

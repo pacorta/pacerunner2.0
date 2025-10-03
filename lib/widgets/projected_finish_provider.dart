@@ -20,8 +20,8 @@ final projectedFinishProvider = Provider<Map<String, String>>((ref) {
   final stablePaceString = ref.watch(stableAveragePaceProvider);
   final firstReachTimeSecs = ref.watch(firstReachTargetTimeSecondsProvider);
 
-  // Return empty if no target set or insufficient data
-  if (targetDistance == null || targetTime == null || currentDistance < 0.05) {
+  // Return empty if no target distance set or insufficient data
+  if (targetDistance == null || currentDistance < 0.05) {
     return {
       "projectedTime": "Calculating...",
       "status": "Starting...",
@@ -50,9 +50,11 @@ final projectedFinishProvider = Provider<Map<String, String>>((ref) {
   print('  Stable pace per km: $stableAveragePacePerKm sec/km');
   */
 
-  // If the user has reached the goal distance (complex goal), freeze the
+  // If the user has reached the goal distance (complex goal with time), freeze the
   // projection at the first time they hit the distance and compare vs target.
-  if (firstReachTimeSecs != null && currentDistance >= targetDistanceKm) {
+  if (targetTime != null &&
+      firstReachTimeSecs != null &&
+      currentDistance >= targetDistanceKm) {
     final projectedTotalSeconds = firstReachTimeSecs;
 
     // Format time as Xm Ys or Hh Mm Ss
@@ -101,7 +103,16 @@ final projectedFinishProvider = Provider<Map<String, String>>((ref) {
     formattedProjectedTime = "${minutes}m ${seconds}s";
   }
 
-  // Calculate difference from target
+  // If no target time, just return the projection without status/difference
+  if (targetTime == null) {
+    return {
+      "projectedTime": formattedProjectedTime,
+      "status": "Distance-only goal",
+      "difference": "0",
+    };
+  }
+
+  // Calculate difference from target (only when target time exists)
   final difference = projectedTotalSeconds - targetTime;
   final diffMinutes = (difference.abs() / 60).floor();
   final diffSeconds = (difference.abs() % 60).floor();

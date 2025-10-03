@@ -11,13 +11,20 @@ class PredictionDisplay extends ConsumerWidget {
   const PredictionDisplay({super.key});
 
   // Helper function to determine text color
+  // - Distance-only goal: always white (no time comparison)
   // - Normal running: white when on/under target, red when over
   // - Finalized (after reaching target distance in complex goal):
   //   green when under-or-equal target time, red when over
   Color _getProjectionColor(
     Map<String, String> prediction, {
     required bool isFinalized,
+    required bool hasTargetTime,
   }) {
+    // For distance-only goals, always show white
+    if (!hasTargetTime) {
+      return Colors.white;
+    }
+
     final difference = prediction['difference'];
     if (difference == null || difference == '0') {
       return isFinalized ? Colors.green : Colors.white;
@@ -43,10 +50,13 @@ class PredictionDisplay extends ConsumerWidget {
     final firstReachTimeSecs = ref.watch(firstReachTargetTimeSecondsProvider);
     final currentDistanceKm = ref.watch(distanceProvider);
     final targetDistance = ref.watch(targetDistanceProvider);
+    final targetTime = ref.watch(targetTimeProvider);
     final unit = ref.watch(distanceUnitProvider);
 
     bool isFinalized = false;
-    if (firstReachTimeSecs != null && targetDistance != null) {
+    bool hasTargetTime = targetTime != null;
+
+    if (hasTargetTime && firstReachTimeSecs != null && targetDistance != null) {
       double targetDistanceKm = unit == DistanceUnit.miles
           ? milesToKilometers(targetDistance)
           : targetDistance;
@@ -79,7 +89,8 @@ class PredictionDisplay extends ConsumerWidget {
           Text(
             prediction['projectedTime'] ?? 'Keep running...',
             style: TextStyle(
-              color: _getProjectionColor(prediction, isFinalized: isFinalized),
+              color: _getProjectionColor(prediction,
+                  isFinalized: isFinalized, hasTargetTime: hasTargetTime),
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),

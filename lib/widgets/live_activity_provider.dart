@@ -159,7 +159,7 @@ class LiveActivityNotifier extends StateNotifier<bool> {
 
       if (hasComplex) {
         // Distance + Time goal
-        final double td = targetDistance ?? 0.0;
+        final double td = targetDistance;
         goal =
             "${td.toStringAsFixed(1)} $distanceUnitString under $targetTimeFormatted";
         final projection = _ref.read(projectedFinishProvider);
@@ -174,11 +174,14 @@ class LiveActivityNotifier extends StateNotifier<bool> {
               "${displayDistance.toStringAsFixed(1)}/${td.toStringAsFixed(1)} $distanceUnitString";
         }
       } else if (hasDistanceOnly) {
-        // Distance-only goal
-        final double td = targetDistance ?? 0.0;
+        // Distance-only goal (now shows projection without time comparison)
+        final double td = targetDistance;
         goal = "Run ${td.toStringAsFixed(1)} $distanceUnitString";
-        predictedFinish = null;
-        differenceSeconds = null;
+
+        // Show projected finish time based on current pace
+        final projection = _ref.read(projectedFinishProvider);
+        predictedFinish = projection["projectedTime"];
+        differenceSeconds = null; // No time comparison for distance-only
 
         if (td > 0) {
           progress = (displayDistance / td).clamp(0.0, 1.0);
@@ -189,7 +192,7 @@ class LiveActivityNotifier extends StateNotifier<bool> {
       } else if (hasTimeOnly) {
         // Time-only goal
         final elapsedSeconds = _ref.read(elapsedTimeInSecondsProvider);
-        final double tos = timeOnlySeconds ?? 0.0;
+        final double tos = timeOnlySeconds;
         // Label for time-only goal
         goal = "${_formatSimpleTime(tos)} run";
         predictedFinish = null;

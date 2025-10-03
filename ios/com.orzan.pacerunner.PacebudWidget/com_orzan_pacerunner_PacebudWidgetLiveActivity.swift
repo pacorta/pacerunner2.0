@@ -119,7 +119,7 @@ struct com_orzan_pacerunner_PacebudWidgetLiveActivity: Widget {
                     .layoutPriority(1)
                     Spacer()
                 }
-                // Bottom projection row (only for complex goals)
+                // Bottom projection row (for distance+time and distance-only goals)
                 if context.state.predictedFinish != nil {
                     HStack {
                         Spacer()

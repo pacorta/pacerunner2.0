@@ -1054,12 +1054,10 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
 
   // Seccion de Prediction Display
   Widget _buildPredictionSection(RunState runState) {
-    final customPace = ref.watch(customPaceProvider);
     final customDistance = ref.watch(customDistanceProvider);
 
-    // Solo mostrar prediction si hay target pace configurado y el run está activo
-    if (customPace != null &&
-        customDistance != null &&
+    // Show prediction if there's a distance goal (with or without time) and the run is active
+    if (customDistance != null &&
         (runState == RunState.running || runState == RunState.paused)) {
       return Column(
         children: [
@@ -1069,7 +1067,7 @@ class _CurrentRunState extends ConsumerState<CurrentRun> {
       );
     }
 
-    return SizedBox.shrink(); // No mostrar nada si no hay target pace
+    return SizedBox.shrink(); // No mostrar nada si no hay distance goal
   }
 
   // Botones que cambian según el estado del run
