@@ -399,10 +399,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           // Run button
           ElevatedButton(
-            onPressed: () {
-              // If user has unconfirmed goal, set it first
+            onPressed: () async {
+              // If user has unconfirmed goal, validate and set it first
               if (hasUnconfirmedGoal) {
-                setGoalFromTempSelections(ref, context);
+                final goalSetSuccessfully =
+                    await setGoalFromTempSelections(ref, context);
+                if (!goalSetSuccessfully) {
+                  return; // Don't start run if validation failed or user cancelled
+                }
               }
               _startRun();
             },

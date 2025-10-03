@@ -21,13 +21,18 @@
     - Modified `saveRunData()` to return Firestore doc ID for tracking.
     - Pass saved doc ID to `RunSummaryScreen` so "Discard run" can delete it from database.
     - Added `deleteRun(docId)` method to `RunSaveService` for modular deletion
+
+- Goal distance validation was too strict (1.0 minimum) and didn't prevent navigation on invalid input.
+  - Solution:
+    - Lowered hard minimum from 1.0 to 0.1 mi/km for flexibility.
+    - Added soft warning dialog for distances < 1.0, allowing users to proceed if desired.
+    - Made `setGoalFromTempSelections` async and return bool to prevent navigation on validation failure.
+    - Reused dialog pattern from existing code for consistency (DRY principle).
+
 ## User Feedback:
 
 ### Bugs:
 - Run completed screen (or any other screen) can be enlarged if the user has the text of their phone larger, resulting in not seeing the 'ok button immediatly. Given that we currently save the run when they press this button, if they leave without pressing this, their run will not be saved.
-- When putting a goal distance less than 1.0 (mi/km), we tell the user they cannot do that, yet we continue to the run screen without any goal setup. I think:
-  - 1) We should not let them continue, or...
-  - 2) The 1.0 restriction is too high, but how low should we go? Should we remove the restrictions overall and let the user use the app weirdly if they wish to do so? (ex. goal of 0.90 mi/km in 1 second)?
 
 ### Improve soon (In order of importance):
 1) Save the map photo in the user’s data. If user has no map, don’t show anything. Make it optional to share it on user's story (Include map? Y/N)

@@ -17,18 +17,23 @@ class InlineGoalInput extends ConsumerStatefulWidget {
   ConsumerState<InlineGoalInput> createState() => _InlineGoalInputState();
 }
 
-// Validación de objetivos para los 3 tipos
+// Hard validation - prevent truly nonsensical input
 bool _isValidGoal(double? distance, Duration? time, DistanceUnit unit) {
   // Must have at least one selection
   if (distance == null && time == null) return false;
 
-  // Validate distance if provided
-  if (distance != null && distance < 1.0) return false;
+  // Validate distance if provided (lowered to 0.1 to allow flexibility)
+  if (distance != null && distance < 0.1) return false;
 
   // Validate time if provided
   if (time != null && time.inSeconds < 60) return false;
 
   return true;
+}
+
+// Check if distance warrants a warning (soft validation)
+bool _shouldWarnAboutDistance(double? distance) {
+  return distance != null && distance < 1.0;
 }
 
 String _getValidationMessage(
@@ -39,8 +44,8 @@ String _getValidationMessage(
 
   final unitLabel = unit == DistanceUnit.kilometers ? 'km' : 'mi';
 
-  if (distance != null && distance < 1.0) {
-    return 'Distance must be at least 1 $unitLabel';
+  if (distance != null && distance < 0.1) {
+    return 'Distance must be at least 0.1 $unitLabel';
   }
 
   if (time != null && time.inSeconds < 60) {
@@ -50,13 +55,116 @@ String _getValidationMessage(
   return '';
 }
 
+// Reusable warning dialog for short distances
+Future<bool> _showShortDistanceWarning(
+    BuildContext context, DistanceUnit unit) async {
+  final unitLabel = unit == DistanceUnit.kilometers ? 'km' : 'mi';
+
+  final result = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      title: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded,
+              color: Colors.orange.shade600, size: 28),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Short Distance',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2C3E50),
+              ),
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'This feature works best for runs 1+ $unitLabel.',
+            style: const TextStyle(
+              fontSize: 16,
+              color: Color(0xFF34495E),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline,
+                    color: Colors.orange.shade600, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Continue anyway?',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF2C3E50),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(
+            'Cancel',
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange.shade600,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: const Text(
+            'Continue',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  return result ?? false;
+}
+
 // Función global para establecer el goal desde HomeScreen
-void setGoalFromTempSelections(WidgetRef ref, BuildContext context) {
+// Returns true if goal was set successfully, false if validation failed or user cancelled
+Future<bool> setGoalFromTempSelections(
+    WidgetRef ref, BuildContext context) async {
   final selectedDistance = ref.read(tempSelectedDistanceProvider);
   final selectedTime = ref.read(tempSelectedTimeProvider);
   final unit = ref.read(distanceUnitProvider);
 
-  // Validar objetivo
+  // Hard validation - prevent truly invalid input
   if (!_isValidGoal(selectedDistance, selectedTime, unit)) {
     final message = _getValidationMessage(selectedDistance, selectedTime, unit);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -66,7 +174,15 @@ void setGoalFromTempSelections(WidgetRef ref, BuildContext context) {
         duration: const Duration(seconds: 3),
       ),
     );
-    return;
+    return false;
+  }
+
+  // Soft validation - warn about short distances
+  if (_shouldWarnAboutDistance(selectedDistance)) {
+    final shouldContinue = await _showShortDistanceWarning(context, unit);
+    if (!shouldContinue) {
+      return false;
+    }
   }
 
   // Determine goal type and set appropriate values
@@ -100,6 +216,8 @@ void setGoalFromTempSelections(WidgetRef ref, BuildContext context) {
     ref.read(readablePaceProvider.notifier).state =
         'Run ${_formatDurationSimpleGlobal(selectedTime)}';
   }
+
+  return true;
 }
 
 // Función global para limpiar TODO el estado relacionado al goal
