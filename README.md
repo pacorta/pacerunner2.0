@@ -1,4 +1,4 @@
-# Pacebud Progress Log: Sept 24-29th, 2025
+# Pacebud Progress Log: Sept 24th - Oct 6th, 2025
 
 ## App is now live on the AppStore!
 
@@ -32,6 +32,13 @@
     - Added soft warning dialog for distances < 1.0, allowing users to proceed if desired.
     - Made `setGoalFromTempSelections` async and return bool to prevent navigation on validation failure.
     - Reused dialog pattern from existing code for consistency (DRY principle).
+
+- Goal setup dialog was duplicated in two places (onboarding and help button), causing inconsistency.
+  - Solution:
+    - Created `showGoalSetupDialog()` as single source of truth in `inline_goal_input.dart`.
+    - Removed duplicate dialog from `home_screen.dart` (~180 lines).
+    - Standardized to use Icon instead of emoji for consistency.
+    - Both onboarding and help button now call the same function.
 
 ## New Features:
 - **Projected finish time now shows for distance-only goals**

@@ -156,6 +156,183 @@ Future<bool> _showShortDistanceWarning(
   return result ?? false;
 }
 
+// Global function to show the goal setup guide dialog
+// This is the single source of truth for goal instructions
+Future<void> showGoalSetupDialog(BuildContext context) async {
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text(
+          'Set Your Goal',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF2C3E50),
+          ),
+          textAlign: TextAlign.center,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Choose how you want to track your run:',
+              style: TextStyle(
+                fontSize: 16,
+                color: Color(0xFF34495E),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.straighten,
+                    size: 20, color: Color(0xFF2C3E50)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: RichText(
+                    text: const TextSpan(
+                      style: TextStyle(fontSize: 15, color: Color(0xFF2C3E50)),
+                      children: [
+                        TextSpan(
+                          text: 'Distance only: ',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        TextSpan(text: 'Set just the '),
+                        TextSpan(
+                          text: 'distance',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF9B59B6),
+                          ),
+                        ),
+                        TextSpan(text: ' you want to run'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.access_time,
+                    size: 20, color: Color(0xFF2C3E50)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: RichText(
+                    text: const TextSpan(
+                      style: TextStyle(fontSize: 15, color: Color(0xFF2C3E50)),
+                      children: [
+                        TextSpan(
+                          text: 'Time only: ',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        TextSpan(text: 'Set just the '),
+                        TextSpan(
+                          text: 'time',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF9B59B6),
+                          ),
+                        ),
+                        TextSpan(text: ' you want to run'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.speed, size: 20, color: Color(0xFF2C3E50)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: RichText(
+                    text: const TextSpan(
+                      style: TextStyle(fontSize: 15, color: Color(0xFF2C3E50)),
+                      children: [
+                        TextSpan(
+                          text: 'Distance + Time: ',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        TextSpan(text: 'Set '),
+                        TextSpan(
+                          text: 'both',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF9B59B6),
+                          ),
+                        ),
+                        TextSpan(
+                            text:
+                                ' for a pace challenge. Beat your projection!'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F8FF),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.tips_and_updates_outlined,
+                      size: 18, color: Color(0xFF3498DB)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Tap the numbers to change them, or leave at 0 to skip that goal.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.blue.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            style: TextButton.styleFrom(
+              backgroundColor: const Color(0xFF9B59B6),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Let\'s run!',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+        actionsPadding: const EdgeInsets.all(16),
+        actionsAlignment: MainAxisAlignment.center,
+      );
+    },
+  );
+}
+
 // Función global para establecer el goal desde HomeScreen
 // Returns true if goal was set successfully, false if validation failed or user cancelled
 Future<bool> setGoalFromTempSelections(
@@ -331,186 +508,7 @@ class _InlineGoalInputState extends ConsumerState<InlineGoalInput>
 
   Future<void> _showGoalHelpDialog() async {
     if (!mounted) return;
-
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Text(
-            'Set Your Goal',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2C3E50),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Choose how you want to track your run:',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF34495E),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Option 1: Distance only
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.straighten,
-                      size: 20, color: Color(0xFF2C3E50)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: RichText(
-                      text: const TextSpan(
-                        style:
-                            TextStyle(fontSize: 15, color: Color(0xFF2C3E50)),
-                        children: [
-                          TextSpan(
-                            text: 'Distance only: ',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          TextSpan(text: 'Set just the '),
-                          TextSpan(
-                            text: 'distance',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF9B59B6),
-                            ),
-                          ),
-                          TextSpan(text: ' you want to run'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Option 2: Time only
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.access_time,
-                      size: 20, color: Color(0xFF2C3E50)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: RichText(
-                      text: const TextSpan(
-                        style:
-                            TextStyle(fontSize: 15, color: Color(0xFF2C3E50)),
-                        children: [
-                          TextSpan(
-                            text: 'Time only: ',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          TextSpan(text: 'Set just the '),
-                          TextSpan(
-                            text: 'time',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF9B59B6),
-                            ),
-                          ),
-                          TextSpan(text: ' you want to run'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Option 3: Both distance and time
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.speed, size: 20, color: Color(0xFF2C3E50)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: RichText(
-                      text: const TextSpan(
-                        style:
-                            TextStyle(fontSize: 15, color: Color(0xFF2C3E50)),
-                        children: [
-                          TextSpan(
-                            text: 'Distance + Time: ',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          TextSpan(text: 'Set '),
-                          TextSpan(
-                            text: 'both',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF9B59B6),
-                            ),
-                          ),
-                          TextSpan(
-                              text:
-                                  ' for a pace challenge. Beat your projection!'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0F8FF),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.tips_and_updates_outlined,
-                        size: 18, color: Color(0xFF3498DB)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Tap the numbers to change them, or leave at 0 to skip that goal.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.blue.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              style: TextButton.styleFrom(
-                backgroundColor: const Color(0xFF9B59B6),
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                'Let\'s run!',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-          actionsPadding: const EdgeInsets.all(16),
-          actionsAlignment: MainAxisAlignment.center,
-        );
-      },
-    );
+    await showGoalSetupDialog(context);
   }
 
   @override
