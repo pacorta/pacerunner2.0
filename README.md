@@ -41,6 +41,21 @@
     - Both onboarding and help button now call the same function.
 
 ## New Features:
+- **12-Week Progress View (Strava-style)**
+  - Toggle between weekly breakdown and 12-week overview with segmented control.
+  - Tap weeks in 12-week view to browse history, then drill down to daily stats in week mode.
+  - Tap individual days to see single-day performance with persistent vertical line indicator.
+  - Dynamic titles: "This week", "Sep 22 - Sep 28, 2025", "Today", "Wednesday, Sep 24".
+  - Discrete clear button (×) to return from day view to week totals.
+  - Implementation:
+    - Created `stats_view_mode_provider.dart` for toggle state (defaults to Last 12 Weeks).
+    - Built `stats_segmented_control.dart` with mode switching.
+    - Added `selected_week_provider.dart` and `selected_day_provider.dart` for selection state (tried to follow DRY pattern).
+    - Extended `weekly_line_chart.dart` to support both 7-day and 12-week modes with month labels (JUL, AUG, SEP, OCT).
+    - Centralized date utilities in `date_utils.dart` (week ranges, month/day name constants).
+    - Refactored `weekly_snapshot.dart` to handle both modes with individual week/day drill-down.
+    - Chart shows 3 horizontal grid lines (0, middle, max) for minimal clutter.
+
 - **Projected finish time now shows for distance-only goals**
   - Users can now see their projected finish time based on current pace even when they only set a distance goal (without a time target).
   - Implementation:
@@ -54,6 +69,8 @@
 
 ### Bugs:
 - Run completed screen (or any other screen) can be enlarged if the user has the text of their phone larger, resulting in not seeing the 'ok button immediatly. Given that we currently save the run when they press this button, if they leave without pressing this, their run will not be saved.
+
+- User's unit of measurement is not saved. We need to use sharedPreferences to save this, if not it always defaults to Km.
 
 ### Improve soon (In order of importance):
 1) Save the map photo in the user's data. If user has no map, don't show anything. Make it optional to share it on user's story (Include map? Y/N)

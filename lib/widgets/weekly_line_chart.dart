@@ -1,17 +1,42 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../utils/date_utils.dart' as date_utils;
 
-/// Distancias por día de Lunes (idx 0) a Domingo (idx 6)
+enum ChartMode {
+  week, // 7 data points (M, T, W, T, F, S, S)
+  twelveWeeks, // 12 data points (weekly aggregates)
+}
+
+/// Line chart that displays either weekly (7 days) or 12-week data
+/// For week mode: data represents Monday (idx 0) to Sunday (idx 6)
+/// For twelveWeeks mode: data represents 12 weeks of aggregated data
 class WeeklyLineChart extends StatefulWidget {
-  final List<double> data; // ej: [0, 3.2, 4.0, 2.8, 0, 12.7, 0]
-  final String unitLabel; // "km" o "mi"
-  final bool showAvgToggle; // si quieres el botón 'avg'
+  final List<double> data;
+  final String unitLabel; // "km" or "mi"
+  final bool showAvgToggle;
+  final ChartMode mode;
+  final List<String>?
+      xAxisLabels; // Custom labels for x-axis (for 12-week mode)
+  final Function(int)?
+      onWeekTap; // Callback when a week is tapped (12-week mode only)
+  final int?
+      selectedWeekIndex; // Index of selected week to highlight (12-week mode only)
+  final Function(int)?
+      onDayTap; // Callback when a day is tapped (week mode only)
+  final int?
+      selectedDayIndex; // Index of selected day to highlight (week mode only)
 
   const WeeklyLineChart({
     super.key,
     required this.data,
     this.unitLabel = 'km',
-    this.showAvgToggle = false, // Changed to false for cleaner look in snapshot
+    this.showAvgToggle = false,
+    this.mode = ChartMode.week,
+    this.xAxisLabels,
+    this.onWeekTap,
+    this.selectedWeekIndex,
+    this.onDayTap,
+    this.selectedDayIndex,
   });
 
   @override
@@ -66,16 +91,29 @@ class _WeeklyLineChartState extends State<WeeklyLineChart> {
 
   // ---- Títulos de ejes ----
 
-  static const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
   Widget _bottomTitle(double value, TitleMeta meta) {
     final style = TextStyle(
       fontWeight: FontWeight.w500,
-      fontSize: 10,
+      fontSize: widget.mode == ChartMode.week ? 10 : 9,
       color: Colors.black.withOpacity(0.6),
     );
     final i = value.toInt();
-    final text = (i >= 0 && i < 7) ? _dayLabels[i] : '';
+
+    String text;
+    if (widget.mode == ChartMode.twelveWeeks) {
+      // Use custom labels for 12-week mode (month abbreviations)
+      if (widget.xAxisLabels != null &&
+          i >= 0 &&
+          i < widget.xAxisLabels!.length) {
+        text = widget.xAxisLabels![i];
+      } else {
+        text = '';
+      }
+    } else {
+      // Use day labels for week mode
+      text = (i >= 0 && i < 7) ? date_utils.dayNamesShort[i] : '';
+    }
+
     return SideTitleWidget(
       meta: meta,
       child: Text(text, style: style),
@@ -83,13 +121,13 @@ class _WeeklyLineChartState extends State<WeeklyLineChart> {
   }
 
   Widget _leftTitle(double value, TitleMeta meta) {
-    // Solo mostrar etiquetas si hay datos significativos
+    // Don't show labels if no data
     if (widget.data.every((d) => d == 0)) {
-      return const SizedBox.shrink(); // No mostrar etiquetas si no hay datos
+      return const SizedBox.shrink();
     }
 
-    // Solo mostrar etiquetas en valores enteros y cuando sea apropiado
-    if (value.toInt() > _maxY || value < 0) {
+    // Only show labels within valid range
+    if (value > _maxY || value < 0) {
       return const SizedBox.shrink();
     }
 
@@ -98,13 +136,18 @@ class _WeeklyLineChartState extends State<WeeklyLineChart> {
       fontSize: 9,
       color: Colors.black.withOpacity(0.5),
     );
-    return Text(value.toInt().toString(), style: style);
+    // Round to nearest integer for clean display
+    return Text(value.round().toString(), style: style);
   }
 
   // ---- Datos / ejes dinámicos ----
 
-  List<FlSpot> get _spots =>
-      List.generate(7, (i) => FlSpot(i.toDouble(), widget.data[i]));
+  List<FlSpot> get _spots => List.generate(
+        widget.data.length,
+        (i) => FlSpot(i.toDouble(), widget.data[i]),
+      );
+
+  double get _maxX => (widget.data.length - 1).toDouble();
 
   double get _maxY {
     final m = widget.data.fold<double>(0, (a, b) => b > a ? b : a);
@@ -112,13 +155,13 @@ class _WeeklyLineChartState extends State<WeeklyLineChart> {
     // Si no hay datos, retornar 1.0
     if (m == 0) return 1.0;
 
-    // Para valores muy pequeños (< 1), usar un margen más pequeño
+    // Para valores muy pequeños (< 1), usar mínimo de 1.0
     if (m < 1.0) {
-      return (m * 1.5).clamp(0.5, 1.0);
+      return 1.0;
     }
 
-    // Para valores normales, usar margen del 25%
-    return m * 1.25;
+    // Redondear hacia arriba al entero más cercano (sin margen extra)
+    return m.ceilToDouble();
   }
 
   // ---- Config principal ----
@@ -130,29 +173,35 @@ class _WeeklyLineChartState extends State<WeeklyLineChart> {
     return LineChartData(
       lineTouchData: withTouch
           ? LineTouchData(
+              touchCallback: (FlTouchEvent event, LineTouchResponse? response) {
+                if (event is FlTapUpEvent &&
+                    response?.lineBarSpots != null &&
+                    response!.lineBarSpots!.isNotEmpty) {
+                  final index = response.lineBarSpots!.first.x.toInt();
+
+                  // Handle tap in twelveWeeks mode
+                  if (widget.mode == ChartMode.twelveWeeks &&
+                      widget.onWeekTap != null) {
+                    widget.onWeekTap!(index);
+                  }
+                  // Handle tap in week mode
+                  else if (widget.mode == ChartMode.week &&
+                      widget.onDayTap != null) {
+                    widget.onDayTap!(index);
+                  }
+                }
+              },
+              // Disable tooltip by returning null for each item
               touchTooltipData: LineTouchTooltipData(
-                getTooltipItems: (items) => items.map((it) {
-                  final day = _dayLabels[it.x.toInt()];
-                  final v = it.y;
-                  // 0–9 con 2 decimales, >=10 sin decimales
-                  final txt =
-                      v >= 10 ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
-                  return LineTooltipItem(
-                    '$day: $txt ${widget.unitLabel}',
-                    const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  );
-                }).toList(),
+                getTooltipItems: (items) => items.map((e) => null).toList(),
               ),
             )
           : const LineTouchData(enabled: false),
       gridData: FlGridData(
         show: true,
         drawVerticalLine: false, // Hide vertical lines for cleaner look
-        horizontalInterval:
-            (_maxY <= 5 ? 1 : (_maxY / 5)).clamp(1, 999).toDouble(),
+        // Only 3 horizontal lines: 0, middle, and max
+        horizontalInterval: (_maxY / 2).clamp(0.5, 999).toDouble(),
         verticalInterval: 1,
         getDrawingHorizontalLine: (_) => FlLine(
           color: Colors.black.withOpacity(0.1), // Very subtle grid
@@ -174,7 +223,8 @@ class _WeeklyLineChartState extends State<WeeklyLineChart> {
         leftTitles: AxisTitles(
           sideTitles: SideTitles(
             showTitles: true,
-            interval: _calculateLeftInterval(),
+            // Show only 3 labels: 0, middle, and max
+            interval: (_maxY / 2).clamp(0.5, 999).toDouble(),
             reservedSize: 30,
             getTitlesWidget: _leftTitle,
           ),
@@ -184,10 +234,42 @@ class _WeeklyLineChartState extends State<WeeklyLineChart> {
         show: false, // Remove border for transparent look
       ),
       minX: 0,
-      maxX: 6,
+      maxX: _maxX,
       minY: 0,
       maxY: _maxY,
       lineBarsData: bars,
+      extraLinesData: _buildExtraLines(),
+    );
+  }
+
+  /// Build extra lines (vertical indicator for selected week/day)
+  ExtraLinesData? _buildExtraLines() {
+    // Determine which selection index to use based on mode
+    double? selectedX;
+
+    if (widget.mode == ChartMode.twelveWeeks &&
+        widget.selectedWeekIndex != null) {
+      selectedX = widget.selectedWeekIndex!.toDouble();
+    } else if (widget.mode == ChartMode.week &&
+        widget.selectedDayIndex != null) {
+      selectedX = widget.selectedDayIndex!.toDouble();
+    }
+
+    // No selection, don't show line
+    if (selectedX == null) {
+      return null;
+    }
+
+    return ExtraLinesData(
+      verticalLines: [
+        VerticalLine(
+          x: selectedX,
+          color: const Color.fromRGBO(
+              140, 82, 255, 0.6), // Gradient color with transparency
+          strokeWidth: 2.5,
+          dashArray: [5, 5], // Dashed line for subtle effect
+        ),
+      ],
     );
   }
 
@@ -224,13 +306,15 @@ class _WeeklyLineChartState extends State<WeeklyLineChart> {
   }
 
   LineChartData _avgData() {
-    final avg =
-        widget.data.isEmpty ? 0.0 : widget.data.reduce((a, b) => a + b) / 7.0;
+    final dataLength = widget.data.length;
+    final avg = widget.data.isEmpty
+        ? 0.0
+        : widget.data.reduce((a, b) => a + b) / dataLength.toDouble();
 
     return _baseChart(
       bars: [
         LineChartBarData(
-          spots: List.generate(7, (i) => FlSpot(i.toDouble(), avg)),
+          spots: List.generate(dataLength, (i) => FlSpot(i.toDouble(), avg)),
           isCurved: true,
           gradient: LinearGradient(
             colors: [
@@ -260,13 +344,5 @@ class _WeeklyLineChartState extends State<WeeklyLineChart> {
       ],
       withTouch: false,
     );
-  }
-
-  double _calculateLeftInterval() {
-    final maxY = _maxY;
-    if (maxY <= 5) {
-      return 1.0;
-    }
-    return (maxY / 5).ceilToDouble();
   }
 }
