@@ -1,50 +1,7 @@
-# Pacebud Progress Log: Sept 24th - Oct 6th, 2025
+# Pacebud Progress Log: Sept 24th - Oct 10th, 2025
 
-## App is now live on the AppStore!
-
-## Fixed Bugs:
-- Live activity would not stop if user started a run and ran less than 0.1 mi/km. 
-  - Solution: stop it when pressing 'discard' on the "no movement detected" warning.
-
-- Distance+time and distance-only goals could show "short by 0.00" or save goalAchieved=false when finishing right at the target distance. UI showed a rounded distance (ex. 8.0 mi) while the threshold crossing used raw precision, so the "first reach" timestamp could be missing.
-  - Solution:
-    - Use raw distance internally (and pass it to summary) for consistent evaluation.
-    - Apply epsilon (0.01 mi / 0.02 km) to treat edge cases as reached.
-    - If the "first reach" timestamp is missing but distance is effectively reached, fall back to total run time for goal evaluation and to save goalCompletionTimeSeconds.
-    - For distance-only headers, use the same epsilon and clamp tiny remainders (< epsilon) to 0.00 so the UI doesn’t show misleading "short by 0.00".
-    - Presentational only: format distance in the card to 2 decimals; evaluation keeps full precision.
-
-- Some users don't wait around to press "Done", which is when we save the run.
-  - Solution: 
-    - Moved save flow from "Done" button to "FINISH" button so runs persist immediately.
-    - Created `RunSaveService` to modularly build and persist run data.
-    - Modified `saveRunData()` to return Firestore doc ID for tracking.
-    - Pass saved doc ID to `RunSummaryScreen` so "Discard run" can delete it from database.
-    - Added `deleteRun(docId)` method to `RunSaveService` for modular deletion.
-    - Added loading dialog "Saving run..." so user sees feedback (no frozen screen).
-    - Implemented local backup with `SharedPreferences` if Firestore fails or user is offline.
-    - Auto-sync pending runs on app startup via `AuthWrapper` (2s delay for Firebase init).
-    - Show orange snackbar if save fails: "Run saved locally. Will sync when online."
-
-- Goal distance validation was too strict (1.0 minimum) and didn't prevent navigation on invalid input.
-  - Solution:
-    - Lowered hard minimum from 1.0 to 0.1 mi/km for flexibility.
-    - Added soft warning dialog for distances < 1.0, allowing users to proceed if desired.
-    - Made `setGoalFromTempSelections` async and return bool to prevent navigation on validation failure.
-    - Reused dialog pattern from existing code for consistency (DRY principle).
-
-- Goal setup dialog was duplicated in two places (onboarding and help button), causing inconsistency.
-  - Solution:
-    - Created `showGoalSetupDialog()` as single source of truth in `inline_goal_input.dart`.
-    - Removed duplicate dialog from `home_screen.dart` (~180 lines).
-    - Standardized to use Icon instead of emoji for consistency.
-    - Both onboarding and help button now call the same function.
-
-- Unit of measurement always defaulted to km on app restart.
-  - Solution:
-    - Converted `distanceUnitProvider` from simple `StateProvider` to `StateNotifier` with automatic persistence.
-    - Implemented `SharedPreferences` storage with `_loadPreference()` on init and `setUnit()` for saves.
-    - Updated `settings_sheet.dart` and `inline_goal_input.dart` to use async `setUnit()` method.
+### App is now live on the AppStore!
+- Update 1.1.0(1):
 
 ## New Features:
 - **12-Week Progress View**
@@ -102,6 +59,52 @@
     - Comments:
       - Not a big fan of the "flicker" (28ms) but it's the only solution I can think of at the moment. Will probably improve when I add the social media sharing modal.
 
+## Fixed Bugs:
+- Live activity would not stop if user started a run and ran less than 0.1 mi/km. 
+  - Solution: stop it when pressing 'discard' on the "no movement detected" warning.
+
+- Distance+time and distance-only goals could show "short by 0.00" or save goalAchieved=false when finishing right at the target distance. UI showed a rounded distance (ex. 8.0 mi) while the threshold crossing used raw precision, so the "first reach" timestamp could be missing.
+  - Solution:
+    - Use raw distance internally (and pass it to summary) for consistent evaluation.
+    - Apply epsilon (0.01 mi / 0.02 km) to treat edge cases as reached.
+    - If the "first reach" timestamp is missing but distance is effectively reached, fall back to total run time for goal evaluation and to save goalCompletionTimeSeconds.
+    - For distance-only headers, use the same epsilon and clamp tiny remainders (< epsilon) to 0.00 so the UI doesn’t show misleading "short by 0.00".
+    - Presentational only: format distance in the card to 2 decimals; evaluation keeps full precision.
+
+- Some users don't wait around to press "Done", which is when we save the run.
+  - Solution: 
+    - Moved save flow from "Done" button to "FINISH" button so runs persist immediately.
+    - Created `RunSaveService` to modularly build and persist run data.
+    - Modified `saveRunData()` to return Firestore doc ID for tracking.
+    - Pass saved doc ID to `RunSummaryScreen` so "Discard run" can delete it from database.
+    - Added `deleteRun(docId)` method to `RunSaveService` for modular deletion.
+    - Added loading dialog "Saving run..." so user sees feedback (no frozen screen).
+    - Implemented local backup with `SharedPreferences` if Firestore fails or user is offline.
+    - Auto-sync pending runs on app startup via `AuthWrapper` (2s delay for Firebase init).
+    - Show orange snackbar if save fails: "Run saved locally. Will sync when online."
+
+- Goal distance validation was too strict (1.0 minimum) and didn't prevent navigation on invalid input.
+  - Solution:
+    - Lowered hard minimum from 1.0 to 0.1 mi/km for flexibility.
+    - Added soft warning dialog for distances < 1.0, allowing users to proceed if desired.
+    - Made `setGoalFromTempSelections` async and return bool to prevent navigation on validation failure.
+    - Reused dialog pattern from existing code for consistency (DRY principle).
+
+- Goal setup dialog was duplicated in two places (onboarding and help button), causing inconsistency.
+  - Solution:
+    - Created `showGoalSetupDialog()` as single source of truth in `inline_goal_input.dart`.
+    - Removed duplicate dialog from `home_screen.dart` (~180 lines).
+    - Standardized to use Icon instead of emoji for consistency.
+    - Both onboarding and help button now call the same function.
+
+- Unit of measurement always defaulted to km on app restart.
+  - Solution:
+    - Converted `distanceUnitProvider` from simple `StateProvider` to `StateNotifier` with automatic persistence.
+    - Implemented `SharedPreferences` storage with `_loadPreference()` on init and `setUnit()` for saves.
+    - Updated `settings_sheet.dart` and `inline_goal_input.dart` to use async `setUnit()` method.
+
+
+
 ## User Feedback:
 
 ### Bugs:
@@ -113,7 +116,7 @@
 2) Add medals/rewards for completing a goal. Then by completing their longest ever run/ fastest time in the 5k, 10k 1/2mara, or marathon.
 3) Make it easier to share on social media (maybe with appinio_social_share 0.3.2).
 4) The user should leave the "end run" button pressed for about a second to make sure they intended to finish the run (or add an alert to confirm).
-5) Improve DRY occassions.
+5) Improve more DRY occassions.
 
 ### Would be nice to have:
 - Add a streak by week like Hevy/Strava.
