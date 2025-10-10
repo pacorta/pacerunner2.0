@@ -748,13 +748,13 @@ class _InlineGoalInputState extends ConsumerState<InlineGoalInput>
     }
   }
 
-  void _toggleUnit() {
+  void _toggleUnit() async {
     final currentUnit = ref.read(distanceUnitProvider);
     final newUnit = currentUnit == DistanceUnit.kilometers
         ? DistanceUnit.miles
         : DistanceUnit.kilometers;
 
-    ref.read(distanceUnitProvider.notifier).state = newUnit;
+    await ref.read(distanceUnitProvider.notifier).setUnit(newUnit);
 
     // Convert existing distance if set
     final selectedDistance = ref.read(tempSelectedDistanceProvider);

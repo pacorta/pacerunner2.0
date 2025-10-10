@@ -40,6 +40,12 @@
     - Standardized to use Icon instead of emoji for consistency.
     - Both onboarding and help button now call the same function.
 
+- Unit of measurement always defaulted to km on app restart.
+  - Solution:
+    - Converted `distanceUnitProvider` from simple `StateProvider` to `StateNotifier` with automatic persistence.
+    - Implemented `SharedPreferences` storage with `_loadPreference()` on init and `setUnit()` for saves.
+    - Updated `settings_sheet.dart` and `inline_goal_input.dart` to use async `setUnit()` method.
+
 ## New Features:
 - **12-Week Progress View**
   - Toggle between weekly breakdown and 12-week overview with segmented control.
@@ -99,7 +105,6 @@
 ## User Feedback:
 
 ### Bugs:
-- User's unit of measurement is not saved. We need to use sharedPreferences to save this, if not it always defaults to Km.
 - Run completed screen (or any other screen) can be enlarged if the user has the text of their phone larger, resulting in not seeing the 'ok button immediatly. Given that we currently save the run when they press this button, if they leave without pressing this, their run will not be saved.
 
 

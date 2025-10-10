@@ -845,11 +845,12 @@ class SettingsSheet extends ConsumerWidget {
                     Icon(Icons.chevron_right, color: Colors.grey.shade400),
                   ],
                 ),
-                onTap: () {
+                onTap: () async {
                   final notifier = ref.read(distanceUnitProvider.notifier);
-                  notifier.state = unit == DistanceUnit.miles
+                  final newUnit = unit == DistanceUnit.miles
                       ? DistanceUnit.kilometers
                       : DistanceUnit.miles;
+                  await notifier.setUnit(newUnit);
                 },
               ),
             ),
