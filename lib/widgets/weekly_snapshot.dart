@@ -10,14 +10,61 @@ import 'stats_segmented_control.dart';
 import 'selected_week_provider.dart';
 import 'selected_day_provider.dart';
 import '../utils/date_utils.dart' as date_utils;
+import '../services/clipboard_service.dart';
 
-class WeeklySnapshot extends ConsumerWidget {
+class WeeklySnapshot extends ConsumerStatefulWidget {
   final bool debugMode;
 
   const WeeklySnapshot({super.key, this.debugMode = false});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WeeklySnapshot> createState() => _WeeklySnapshotState();
+}
+
+class _WeeklySnapshotState extends ConsumerState<WeeklySnapshot> {
+  final GlobalKey _snapshotRepaintKey = GlobalKey();
+  final ValueNotifier<bool> _isExporting = ValueNotifier(false);
+
+  @override
+  void initState() {
+    super.initState();
+    // Precache logo so it loads instantly during export
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      precacheImage(
+        const AssetImage('images/pacebud-horizontal-dark.png'),
+        context,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _isExporting.dispose();
+    super.dispose();
+  }
+
+  Future<void> _copySnapshotToClipboard() async {
+    // Activate opaque white background for export
+    _isExporting.value = true;
+
+    // Wait for current frame to finish rendering
+    await WidgetsBinding.instance.endOfFrame;
+    // Additional delay to ensure logo is fully painted
+    await Future.delayed(const Duration(milliseconds: 28));
+
+    await ClipboardService.copyWidgetToClipboard(
+      repaintKey: _snapshotRepaintKey,
+      context: context,
+    );
+
+    // Restore transparent background after export
+    if (mounted) {
+      _isExporting.value = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     final unit = ref.watch(distanceUnitProvider);
     final viewMode = ref.watch(statsViewModeProvider);
@@ -37,7 +84,7 @@ class WeeklySnapshot extends ConsumerWidget {
       }
     });
 
-    if (userId == null && !debugMode) {
+    if (userId == null && !widget.debugMode) {
       return const SizedBox.shrink();
     }
 
@@ -45,9 +92,9 @@ class WeeklySnapshot extends ConsumerWidget {
     final now = DateTime.now();
 
     // Debug mode: return fake data
-    if (debugMode) {
+    if (widget.debugMode) {
       return _buildDebugSnapshot(
-          unit, viewMode, selectedWeekIndex, selectedDayIndex, ref);
+          unit, viewMode, selectedWeekIndex, selectedDayIndex);
     }
 
     // Get all 12 weeks to map selected index to actual dates
@@ -123,147 +170,214 @@ class WeeklySnapshot extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Segmented Control
+                // Segmented Control (outside RepaintBoundary)
                 const StatsSegmentedControl(),
                 const SizedBox(height: 16),
 
-                // Title with optional clear button
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        stats['title'],
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
+                // RepaintBoundary wraps everything we want to copy
+                // Use ValueListenableBuilder to toggle background during export
+                ValueListenableBuilder<bool>(
+                  valueListenable: _isExporting,
+                  builder: (context, isExporting, child) {
+                    return RepaintBoundary(
+                      key: _snapshotRepaintKey,
+                      child: Container(
+                        // Add padding during export to give content breathing room
+                        padding: isExporting
+                            ? const EdgeInsets.fromLTRB(20, 20, 20, 0)
+                            : null,
+                        // Transparent normally, semi-transparent white with rounded corners during export
+                        decoration: isExporting
+                            ? BoxDecoration(
+                                color: const Color.fromARGB(205, 255, 255, 255),
+                                borderRadius: BorderRadius.circular(18),
+                              )
+                            : null,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Title with share and optional clear button
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    stats['title'],
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                // Show logo during export
+                                if (isExporting)
+                                  Image.asset(
+                                    'images/pacebud-horizontal-dark.png',
+                                    height: 24,
+                                    fit: BoxFit.contain,
+                                  ),
+                                // Hide buttons during export
+                                if (!isExporting) ...[
+                                  // Share button (always visible)
+                                  GestureDetector(
+                                    onTap: _copySnapshotToClipboard,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.05),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        Icons.ios_share,
+                                        size: 16,
+                                        color: Colors.black.withOpacity(0.5),
+                                      ),
+                                    ),
+                                  ),
+                                  // Show clear button only when a day is selected in week mode
+                                  if (viewMode == StatsViewMode.currentWeek &&
+                                      selectedDayIndex != null) ...[
+                                    const SizedBox(width: 8),
+                                    GestureDetector(
+                                      onTap: () {
+                                        ref
+                                            .read(selectedDayProvider.notifier)
+                                            .clearSelection();
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.05),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          Icons.close,
+                                          size: 16,
+                                          color: Colors.black.withOpacity(0.4),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Top: Distance and Time stats in a row
+                                Row(
+                                  children: [
+                                    // Distance
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'distance',
+                                            style: TextStyle(
+                                              color:
+                                                  Colors.black.withOpacity(0.8),
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                          ),
+                                          Text(
+                                            stats['totalDistance'] == 0.0
+                                                ? '0.0 ${stats['unit']}'
+                                                : '${stats['totalDistance'].toStringAsFixed(1)} ${stats['unit']}',
+                                            style: const TextStyle(
+                                              color: Colors.black,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    // Time
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'time',
+                                            style: TextStyle(
+                                              color:
+                                                  Colors.black.withOpacity(0.8),
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                          ),
+                                          Text(
+                                            stats['totalDistance'] == 0.0
+                                                ? '0 minutes'
+                                                : stats['totalTime'],
+                                            style: const TextStyle(
+                                              color: Colors.black,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 2),
+
+                                // Bottom: Line chart with transparent background
+                                Container(
+                                  height: 180,
+                                  width: double.infinity,
+                                  child: WeeklyLineChart(
+                                    data: stats['chartData'],
+                                    unitLabel:
+                                        stats['unit'] == 'miles' ? 'mi' : 'km',
+                                    showAvgToggle: false,
+                                    mode: stats['chartMode'],
+                                    xAxisLabels: stats['xAxisLabels'],
+                                    // Week selection (12-week mode)
+                                    selectedWeekIndex:
+                                        viewMode == StatsViewMode.last12Weeks
+                                            ? selectedWeekIndex
+                                            : null,
+                                    onWeekTap:
+                                        viewMode == StatsViewMode.last12Weeks
+                                            ? (index) {
+                                                ref
+                                                    .read(selectedWeekProvider
+                                                        .notifier)
+                                                    .selectWeek(index);
+                                              }
+                                            : null,
+                                    // Day selection (week mode)
+                                    selectedDayIndex:
+                                        viewMode == StatsViewMode.currentWeek
+                                            ? selectedDayIndex
+                                            : null,
+                                    onDayTap:
+                                        viewMode == StatsViewMode.currentWeek
+                                            ? (index) {
+                                                ref
+                                                    .read(selectedDayProvider
+                                                        .notifier)
+                                                    .selectDay(index);
+                                              }
+                                            : null,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    // Show clear button only when a day is selected in week mode
-                    if (viewMode == StatsViewMode.currentWeek &&
-                        selectedDayIndex != null)
-                      GestureDetector(
-                        onTap: () {
-                          ref
-                              .read(selectedDayProvider.notifier)
-                              .clearSelection();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.05),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.close,
-                            size: 16,
-                            color: Colors.black.withOpacity(0.4),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top: Distance and Time stats in a row
-                    Row(
-                      children: [
-                        // Distance
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'distance',
-                                style: TextStyle(
-                                  color: Colors.black.withOpacity(0.8),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                              Text(
-                                stats['totalDistance'] == 0.0
-                                    ? '0.0 ${stats['unit']}'
-                                    : '${stats['totalDistance'].toStringAsFixed(1)} ${stats['unit']}',
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Time
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'time',
-                                style: TextStyle(
-                                  color: Colors.black.withOpacity(0.8),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                              Text(
-                                stats['totalDistance'] == 0.0
-                                    ? '0 minutes'
-                                    : stats['totalTime'],
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 2),
-
-                    // Bottom: Line chart with transparent background
-                    Container(
-                      height: 180,
-                      width: double.infinity,
-                      child: WeeklyLineChart(
-                        data: stats['chartData'],
-                        unitLabel: stats['unit'] == 'miles' ? 'mi' : 'km',
-                        showAvgToggle: false,
-                        mode: stats['chartMode'],
-                        xAxisLabels: stats['xAxisLabels'],
-                        // Week selection (12-week mode)
-                        selectedWeekIndex: viewMode == StatsViewMode.last12Weeks
-                            ? selectedWeekIndex
-                            : null,
-                        onWeekTap: viewMode == StatsViewMode.last12Weeks
-                            ? (index) {
-                                ref
-                                    .read(selectedWeekProvider.notifier)
-                                    .selectWeek(index);
-                              }
-                            : null,
-                        // Day selection (week mode)
-                        selectedDayIndex: viewMode == StatsViewMode.currentWeek
-                            ? selectedDayIndex
-                            : null,
-                        onDayTap: viewMode == StatsViewMode.currentWeek
-                            ? (index) {
-                                ref
-                                    .read(selectedDayProvider.notifier)
-                                    .selectDay(index);
-                              }
-                            : null,
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -523,7 +637,7 @@ class WeeklySnapshot extends ConsumerWidget {
 
   // Debug mode: build snapshot with fake data
   Widget _buildDebugSnapshot(DistanceUnit unit, StatsViewMode viewMode,
-      int selectedWeekIndex, int? selectedDayIndex, WidgetRef ref) {
+      int selectedWeekIndex, int? selectedDayIndex) {
     // Generate fake data based on mode
     List<double> fakeDataKm;
     ChartMode chartMode;
@@ -612,158 +726,220 @@ class WeeklySnapshot extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Segmented Control
+            // Segmented Control (outside RepaintBoundary)
             const StatsSegmentedControl(),
             const SizedBox(height: 16),
 
-            // Title with debug indicator and optional clear button
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                // Show clear button only when a day is selected in week mode
-                if (viewMode == StatsViewMode.currentWeek &&
-                    selectedDayIndex != null)
-                  GestureDetector(
-                    onTap: () {
-                      ref.read(selectedDayProvider.notifier).clearSelection();
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.05),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.close,
-                        size: 16,
-                        color: Colors.black.withOpacity(0.4),
-                      ),
-                    ),
-                  ),
-                const SizedBox(width: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'DEBUG',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+            // RepaintBoundary wraps everything we want to copy
+            // Use ValueListenableBuilder to toggle background during export
+            ValueListenableBuilder<bool>(
+              valueListenable: _isExporting,
+              builder: (context, isExporting, child) {
+                return RepaintBoundary(
+                  key: _snapshotRepaintKey,
+                  child: Container(
+                    // Add padding during export to give content breathing room
+                    padding: isExporting
+                        ? const EdgeInsets.fromLTRB(20, 20, 20, 0)
+                        : null,
+                    // Transparent normally, semi-transparent white with rounded corners during export
+                    decoration: isExporting
+                        ? BoxDecoration(
+                            color: const Color.fromARGB(219, 255, 255, 255),
+                            borderRadius: BorderRadius.circular(18),
+                          )
+                        : null,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title with share button, optional clear button, and debug indicator
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            // Show logo during export
+                            if (isExporting)
+                              Image.asset(
+                                'images/pacebud-horizontal-dark.png',
+                                height: 24,
+                                fit: BoxFit.contain,
+                              ),
+                            // Hide buttons and debug badge during export
+                            if (!isExporting) ...[
+                              // Share button (always visible)
+                              GestureDetector(
+                                onTap: _copySnapshotToClipboard,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.05),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.ios_share,
+                                    size: 16,
+                                    color: Colors.black.withOpacity(0.5),
+                                  ),
+                                ),
+                              ),
+                              // Show clear button only when a day is selected in week mode
+                              if (viewMode == StatsViewMode.currentWeek &&
+                                  selectedDayIndex != null) ...[
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: () {
+                                    ref
+                                        .read(selectedDayProvider.notifier)
+                                        .clearSelection();
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.05),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.close,
+                                      size: 16,
+                                      color: Colors.black.withOpacity(0.4),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.8),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'DEBUG',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 12),
 
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top: Distance and Time stats in a row
-                Row(
-                  children: [
-                    // Distance
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'distance',
-                            style: TextStyle(
-                              color: Colors.black.withOpacity(0.8),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Top: Distance and Time stats in a row
+                            Row(
+                              children: [
+                                // Distance
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'distance',
+                                        style: TextStyle(
+                                          color: Colors.black.withOpacity(0.8),
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${totalDistance.toStringAsFixed(1)} $unitLabel',
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // Time
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'time',
+                                        style: TextStyle(
+                                          color: Colors.black.withOpacity(0.8),
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                      Text(
+                                        formattedTime,
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          Text(
-                            '${totalDistance.toStringAsFixed(1)} $unitLabel',
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Time
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'time',
-                            style: TextStyle(
-                              color: Colors.black.withOpacity(0.8),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                          Text(
-                            formattedTime,
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
 
-                const SizedBox(height: 2),
+                            const SizedBox(height: 2),
 
-                // Bottom: Line chart with transparent background
-                Container(
-                  height: 180,
-                  width: double.infinity,
-                  child: WeeklyLineChart(
-                    data: chartData,
-                    unitLabel: unitLabel == 'miles' ? 'mi' : 'km',
-                    showAvgToggle: false,
-                    mode: chartMode,
-                    xAxisLabels: xAxisLabels,
-                    // Week selection (12-week mode)
-                    selectedWeekIndex: viewMode == StatsViewMode.last12Weeks
-                        ? selectedWeekIndex
-                        : null,
-                    onWeekTap: viewMode == StatsViewMode.last12Weeks
-                        ? (index) {
-                            ref
-                                .read(selectedWeekProvider.notifier)
-                                .selectWeek(index);
-                          }
-                        : null,
-                    // Day selection (week mode)
-                    selectedDayIndex: viewMode == StatsViewMode.currentWeek
-                        ? selectedDayIndex
-                        : null,
-                    onDayTap: viewMode == StatsViewMode.currentWeek
-                        ? (index) {
-                            ref
-                                .read(selectedDayProvider.notifier)
-                                .selectDay(index);
-                          }
-                        : null,
+                            // Bottom: Line chart with transparent background
+                            Container(
+                              height: 180,
+                              width: double.infinity,
+                              child: WeeklyLineChart(
+                                data: chartData,
+                                unitLabel: unitLabel == 'miles' ? 'mi' : 'km',
+                                showAvgToggle: false,
+                                mode: chartMode,
+                                xAxisLabels: xAxisLabels,
+                                // Week selection (12-week mode)
+                                selectedWeekIndex:
+                                    viewMode == StatsViewMode.last12Weeks
+                                        ? selectedWeekIndex
+                                        : null,
+                                onWeekTap: viewMode == StatsViewMode.last12Weeks
+                                    ? (index) {
+                                        ref
+                                            .read(selectedWeekProvider.notifier)
+                                            .selectWeek(index);
+                                      }
+                                    : null,
+                                // Day selection (week mode)
+                                selectedDayIndex:
+                                    viewMode == StatsViewMode.currentWeek
+                                        ? selectedDayIndex
+                                        : null,
+                                onDayTap: viewMode == StatsViewMode.currentWeek
+                                    ? (index) {
+                                        ref
+                                            .read(selectedDayProvider.notifier)
+                                            .selectDay(index);
+                                      }
+                                    : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                );
+              },
             ),
           ],
         ),

@@ -41,7 +41,7 @@
     - Both onboarding and help button now call the same function.
 
 ## New Features:
-- **12-Week Progress View (Strava-style)**
+- **12-Week Progress View**
   - Toggle between weekly breakdown and 12-week overview with segmented control.
   - Tap weeks in 12-week view to browse history, then drill down to daily stats in week mode.
   - Tap individual days to see single-day performance with persistent vertical line indicator.
@@ -55,6 +55,7 @@
     - Centralized date utilities in `date_utils.dart` (week ranges, month/day name constants).
     - Refactored `weekly_snapshot.dart` to handle both modes with individual week/day drill-down.
     - Chart shows 3 horizontal grid lines (0, middle, max) for minimal clutter.
+    - Activity list below chart filters to show runs from selected week/day (Week mode only).
 
 - **Projected finish time now shows for distance-only goals**
   - Users can now see their projected finish time based on current pace even when they only set a distance goal (without a time target).
@@ -80,6 +81,21 @@
     - **Smart Save Button**: Gray and disabled when data incomplete, purple and enabled when all fields complete.
     - **Persistence**: Uses existing `RunSaveService` with `isManual: true` field to distinguish manual from GPS runs.
 
+- **Activities Graph Sharing**
+  - Users can now share their weekly/12-week stats graph as a PNG image to social media
+  - Implementation:
+    - Unified clipboard logic into reusable `ClipboardService` (DRY principle) - removed duplication from `running_stats.dart` and `run_summary_screen.dart`.
+    - Added discrete share button (iOS share icon) next to graph title.
+    - Export uses brief "flicker" effect to apply export styling without affecting normal UI.
+    - Exported image features:
+      - Semi-transparent white background and 18px rounded corners.
+      - 20px internal padding (so that graph labels stay visible).
+      - Pacebud horizontal logo
+      - Buttons and controls hidden during capture to keep image clean.
+    - Uses `RepaintBoundary`, `GlobalKey`, and `ValueNotifier` for selective widget capture at 3x pixel ratio.
+    - Comments:
+      - Not a big fan of the "flicker" (28ms) but it's the only solution I can think of at the moment. Will probably improve when I add the social media sharing modal.
+
 ## User Feedback:
 
 ### Bugs:
@@ -102,7 +118,6 @@
 - If we eventually add social media, a user should be able to challenge their friends for time/distance/pace runs and bet trophies or something.
 - Send notifications after periods of inactivity (ex. "Those miles aren't gonna run themselves")
 - Activities:
-  - When filtering the runs from 12 weeks-> week -> day, show the runs for all-time -> week -> that day.
   - Default view of last 12 weeks is this week and that's ok. But let's add an easter egg. By tapping "last 12 weeks" (when it's already selected), we can show the total amount of data for the last 12 weeks accumulated.
   - Add a "share button" to save on camera roll or "copy to clipboard" for saving the whole rectangle of information along with the graph.
 

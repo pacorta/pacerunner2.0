@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'dart:ui' as ui;
-import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
-import 'package:super_clipboard/super_clipboard.dart';
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:confetti/confetti.dart';
 import 'run_summary_card.dart';
@@ -24,6 +21,7 @@ import 'time_goal_provider.dart';
 import 'run_state_provider.dart';
 import '../services/live_activity_service.dart';
 import '../services/run_save_service.dart';
+import '../services/clipboard_service.dart';
 
 class RunSummaryScreen extends ConsumerStatefulWidget {
   final Uint8List? mapSnapshot;
@@ -71,63 +69,11 @@ class _RunSummaryScreenState extends ConsumerState<RunSummaryScreen> {
 
   // Copy run summary to clipboard as PNG
   Future<void> _copyToClipboard() async {
-    try {
-      // Render once without the card background so the exported image
-      // can be pasted over photos (Instagram stories, etc.).
-      _exportWithoutBackground.value = true;
-      // Wait one frame so the widget rebuilds without background
-      await Future.delayed(const Duration(milliseconds: 16));
-
-      // Get the RepaintBoundary
-      final RenderRepaintBoundary boundary = _repaintBoundaryKey.currentContext!
-          .findRenderObject() as RenderRepaintBoundary;
-
-      // Capture as image with high quality
-      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-
-      // Convert to PNG bytes
-      final ByteData? byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
-      final Uint8List pngBytes = byteData!.buffer.asUint8List();
-
-      // Copy PNG bytes to system clipboard (not base64 text)
-      final clipboard = SystemClipboard.instance;
-      if (clipboard == null) {
-        throw Exception('Clipboard not available on this platform');
-      }
-      final item = DataWriterItem();
-      item.add(Formats.png(pngBytes));
-      await clipboard.write([item]);
-
-      // Restore background for on-screen display
-      if (mounted) {
-        _exportWithoutBackground.value = false;
-      }
-
-      // Show confirmation
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Copied. Paste in your story :)'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      print('Error copying to clipboard: $e');
-      if (mounted) {
-        _exportWithoutBackground.value = false;
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to copy image'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+    await ClipboardService.copyWidgetToClipboard(
+      repaintKey: _repaintBoundaryKey,
+      context: context,
+      backgroundToggle: _exportWithoutBackground,
+    );
   }
 
   void _triggerConfetti() {

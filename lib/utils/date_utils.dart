@@ -28,8 +28,8 @@ const List<String> dayNamesFull = [
   'Sunday'
 ];
 
-/// Formats a week range as "MMM DD - MMM DD, YYYY" or "This week"
-/// Example: "Sep 29 - Oct 5, 2025" or "This week"
+/// Formats a week range as "MMM DD - MMM DD" or "This week"
+/// Example: "Sep 29 - Oct 5" or "This week"
 String formatWeekRange(DateTime startOfWeek, {DateTime? referenceDate}) {
   final now = referenceDate ?? DateTime.now();
   final currentWeekStart = _getStartOfWeek(now);
@@ -44,18 +44,18 @@ String formatWeekRange(DateTime startOfWeek, {DateTime? referenceDate}) {
   // Calculate end of week (Sunday)
   final endOfWeek = startOfWeek.add(const Duration(days: 6));
 
-  // Format: "Sep 29 - Oct 5, 2025"
+  // Format: "Sep 29 - Oct 5"
   final startMonth = monthAbbreviations[startOfWeek.month - 1];
   final endMonth = monthAbbreviations[endOfWeek.month - 1];
 
-  // If same month, show: "Aug 18 - Aug 24, 2025"
+  // If same month, show: "Aug 18 - Aug 24"
   if (startOfWeek.month == endOfWeek.month &&
       startOfWeek.year == endOfWeek.year) {
-    return '$startMonth ${startOfWeek.day} - $endMonth ${endOfWeek.day}, ${endOfWeek.year}';
+    return '$startMonth ${startOfWeek.day} - $endMonth ${endOfWeek.day}';
   }
 
-  // If different months: "Sep 29 - Oct 5, 2025"
-  return '$startMonth ${startOfWeek.day} - $endMonth ${endOfWeek.day}, ${endOfWeek.year}';
+  // If different months: "Sep 29 - Oct 5"
+  return '$startMonth ${startOfWeek.day} - $endMonth ${endOfWeek.day}';
 }
 
 /// Gets the start of the week (Monday) for a given date

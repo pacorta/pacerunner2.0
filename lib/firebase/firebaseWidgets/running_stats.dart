@@ -1,8 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
-import 'package:super_clipboard/super_clipboard.dart';
-import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,6 +12,11 @@ import '../../widgets/settings_sheet.dart';
 import '../../root_shell.dart';
 import '../../widgets/inline_goal_input.dart';
 import '../../widgets/add_manual_activity_modal.dart';
+import '../../widgets/stats_view_mode_provider.dart';
+import '../../widgets/selected_week_provider.dart';
+import '../../widgets/selected_day_provider.dart';
+import '../../utils/date_utils.dart' as date_utils;
+import '../../services/clipboard_service.dart';
 
 // import '../../home_screen.dart';
 //import '../../widgets/distance_unit_as_string_provider.dart';
@@ -353,6 +354,10 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
 
   Widget _buildRunList() {
     final userId = FirebaseAuth.instance.currentUser!.uid;
+    final viewMode = ref.watch(statsViewModeProvider);
+    final selectedWeekIndex = ref.watch(selectedWeekProvider);
+    final selectedDayIndex = ref.watch(selectedDayProvider);
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
@@ -364,7 +369,44 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        final runs = snapshot.data!.docs;
+        final allRuns = snapshot.data!.docs;
+
+        // Calculate date range for filtering
+        DateTime? filterStartDate;
+        DateTime? filterEndDate;
+
+        if (viewMode == StatsViewMode.currentWeek) {
+          // Get the selected week's start date
+          final now = DateTime.now();
+          final weeks = date_utils.getLastNWeeks(12, referenceDate: now);
+          final selectedWeekStart = weeks[selectedWeekIndex];
+
+          if (selectedDayIndex != null) {
+            // Filter to specific day
+            final selectedDate =
+                selectedWeekStart.add(Duration(days: selectedDayIndex));
+            filterStartDate = DateTime(
+                selectedDate.year, selectedDate.month, selectedDate.day);
+            filterEndDate = DateTime(selectedDate.year, selectedDate.month,
+                selectedDate.day, 23, 59, 59);
+          } else {
+            // Filter to entire week
+            filterStartDate = selectedWeekStart;
+            filterEndDate = selectedWeekStart.add(const Duration(days: 7));
+          }
+        }
+
+        // Filter runs based on date range
+        final runs = (filterStartDate != null && filterEndDate != null)
+            ? allRuns.where((doc) {
+                final run = doc.data() as Map<String, dynamic>;
+                final timestamp = (run['timestamp'] as Timestamp?)?.toDate();
+                if (timestamp == null) return false;
+                return timestamp.isAfter(filterStartDate!
+                        .subtract(const Duration(seconds: 1))) &&
+                    timestamp.isBefore(filterEndDate!);
+              }).toList()
+            : allRuns;
 
         if (runs.isEmpty) {
           // Show a message when there are no runs
@@ -414,7 +456,7 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Start your first run to see your stats here!',
+                    'Go for a run to see your stats here!',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.7),
@@ -488,7 +530,7 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
                                   minWidth: 24, minHeight: 24),
                             ), */
                             IconButton(
-                              icon: const Icon(Icons.share,
+                              icon: const Icon(Icons.ios_share,
                                   color: Colors.white, size: 16),
                               onPressed: () => _showShareDialog(run),
                               padding: const EdgeInsets.all(2),
@@ -686,39 +728,11 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
   }
 
   Future<void> _shareDialogCopyToClipboard() async {
-    try {
-      _shareExportWithoutBackground.value = true;
-      await Future.delayed(const Duration(milliseconds: 16));
-      final boundary = _shareRepaintKey.currentContext!.findRenderObject()
-          as RenderRepaintBoundary;
-      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      final bytes = byteData!.buffer.asUint8List();
-      // Copiar PNG real al portapapeles (no base64)
-      final clipboard = SystemClipboard.instance;
-      if (clipboard == null) {
-        throw Exception('Clipboard not available on this platform');
-      }
-      final item = DataWriterItem();
-      item.add(Formats.png(bytes));
-      await clipboard.write([item]);
-      if (mounted) {
-        _shareExportWithoutBackground.value = false;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Copied. Paste in your story :)'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ));
-      }
-    } catch (e) {
-      if (mounted) {
-        _shareExportWithoutBackground.value = false;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Failed to copy image'),
-          backgroundColor: Colors.red,
-        ));
-      }
-    }
+    await ClipboardService.copyWidgetToClipboard(
+      repaintKey: _shareRepaintKey,
+      context: context,
+      backgroundToggle: _shareExportWithoutBackground,
+    );
   }
 
   Widget _buildMetricWithIcon(IconData icon, String label, String value) {
