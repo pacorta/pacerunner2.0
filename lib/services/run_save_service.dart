@@ -110,6 +110,30 @@ class RunSaveService {
     return docRef.id;
   }
 
+  /// Save manual run data (for manually entered activities)
+  static Future<String?> saveManualRun(Map<String, dynamic> runData) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
+
+    // Ensure timestamp is properly formatted
+    final dataToSave = Map<String, dynamic>.from(runData);
+    if (dataToSave['timestamp'] is DateTime) {
+      // Convert DateTime to Firestore Timestamp
+      dataToSave['timestamp'] = Timestamp.fromDate(dataToSave['timestamp']);
+    } else {
+      // Default to server timestamp
+      dataToSave['timestamp'] = FieldValue.serverTimestamp();
+    }
+
+    final docRef = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('runs')
+        .add(dataToSave);
+
+    return docRef.id;
+  }
+
   static Future<void> deleteRun(String docId) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;

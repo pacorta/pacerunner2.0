@@ -65,20 +65,34 @@
     - Fixed `current_run.dart` to show `PredictionDisplay` when only distance is set.
   - Behavior: Distance+time goals still show color coding (red when behind, white/green when on track), while distance-only goals always display in white.
 
+- **Manual Activity Entry**
+  - Added ability to manually enter running activities
+  - Implementation:
+    - Added "+" button to Activities screen AppBar for easy access.
+    - Created `AddManualActivityModal`.
+    - Built custom Cupertino pickers for all input types:
+      - **Date/Time**: "Today at 3:56 PM" format for current day, "Tue Oct 7 at 3:56 PM" for other days.
+      - **Duration**: HH:MM:SS format with range 00:00:00 - 99:59:59.
+      - **Distance**: 0.0-999.9 with 1 decimal, integrated mi/km unit selection in picker wheel.
+      - **Pace**: MM:SS format with range 0:00-59:59, integrated /mi or /km unit selection in picker wheel.
+    - **Auto-calculation Logic**: If exactly 2 of 3 fields (Time, Distance, Pace) are filled, automatically calculates the third. If all 3 fields have values and user edits one, recalculates the field that was calculated automatically most recently.
+    - **Unit Synchronization**: Distance and Pace units are always synchronized (mi <-> km) without converting numerical values.
+    - **Smart Save Button**: Gray and disabled when data incomplete, purple and enabled when all fields complete.
+    - **Persistence**: Uses existing `RunSaveService` with `isManual: true` field to distinguish manual from GPS runs.
+
 ## User Feedback:
 
 ### Bugs:
+- User's unit of measurement is not saved. We need to use sharedPreferences to save this, if not it always defaults to Km.
 - Run completed screen (or any other screen) can be enlarged if the user has the text of their phone larger, resulting in not seeing the 'ok button immediatly. Given that we currently save the run when they press this button, if they leave without pressing this, their run will not be saved.
 
-- User's unit of measurement is not saved. We need to use sharedPreferences to save this, if not it always defaults to Km.
 
 ### Improve soon (In order of importance):
 1) Save the map photo in the user's data. If user has no map, don't show anything. Make it optional to share it on user's story (Include map? Y/N)
-2) Make the weekly data also be about the last month, and last 10 weeks. Every dot should be a quantity of miles/km.
-3) Add medals/rewards for completing a goal. Then by completing their longest ever run/ fastest time in the 5k, 10k 1/2mara, or marathon.
-4) Make it easier to share on social media (maybe with appinio_social_share 0.3.2).
-5) The user should leave the "end run" button pressed for about a second to make sure they intended to finish the run (or add an alert to confirm).
-6) Improve DRY occassions.
+2) Add medals/rewards for completing a goal. Then by completing their longest ever run/ fastest time in the 5k, 10k 1/2mara, or marathon.
+3) Make it easier to share on social media (maybe with appinio_social_share 0.3.2).
+4) The user should leave the "end run" button pressed for about a second to make sure they intended to finish the run (or add an alert to confirm).
+5) Improve DRY occassions.
 
 ### Would be nice to have:
 - Add a streak by week like Hevy/Strava.
@@ -86,6 +100,11 @@
 - Additional: Add a function to plan ahead by calculating the distance of a route (with google maps calculate distance feature).
 - Add the split pace alerts option.
 - If we eventually add social media, a user should be able to challenge their friends for time/distance/pace runs and bet trophies or something.
+- Send notifications after periods of inactivity (ex. "Those miles aren't gonna run themselves")
+- Activities:
+  - When filtering the runs from 12 weeks-> week -> day, show the runs for all-time -> week -> that day.
+  - Default view of last 12 weeks is this week and that's ok. But let's add an easter egg. By tapping "last 12 weeks" (when it's already selected), we can show the total amount of data for the last 12 weeks accumulated.
+  - Add a "share button" to save on camera roll or "copy to clipboard" for saving the whole rectangle of information along with the graph.
 
 ---
 #### (For earlier logs, see `PAST-LOGS.md`)

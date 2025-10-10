@@ -15,6 +15,7 @@ import '../../widgets/weekly_snapshot.dart';
 import '../../widgets/settings_sheet.dart';
 import '../../root_shell.dart';
 import '../../widgets/inline_goal_input.dart';
+import '../../widgets/add_manual_activity_modal.dart';
 
 // import '../../home_screen.dart';
 //import '../../widgets/distance_unit_as_string_provider.dart';
@@ -148,6 +149,15 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
     SettingsSheet.show(context);
   }
 
+  void _openAddManualActivityModal() async {
+    final result = await showAddManualActivityModal(context);
+    // Modal returns true if activity was saved successfully
+    // The StreamBuilder will automatically refresh the list
+    if (result == true && mounted) {
+      // Optional: Could add additional feedback here if needed
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -177,6 +187,13 @@ class _RunningStatsPageState extends ConsumerState<RunningStatsPage> {
           fontSize: 20,
           fontWeight: FontWeight.w700,
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add, color: Colors.white),
+            onPressed: _openAddManualActivityModal,
+            tooltip: 'Add Manual Activity',
+          ),
+        ],
       ),
       body: Stack(
         children: [
